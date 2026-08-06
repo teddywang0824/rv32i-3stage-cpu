@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="依照目前 SystemVerilog 專案規劃的 RV32I 三級管線 CPU 學習與實作清單。">
+  <title>RV32I 三級管線 CPU｜實作導航</title>
+  <style>
+    :root {
+      --bg: #f4f1e8;
+      --paper: #fffdf7;
+      --ink: #20251f;
+      --muted: #667066;
+      --line: #d8d8cb;
+      --green: #1f6b4f;
+      --green-soft: #e2f0e8;
+      --amber: #b76522;
+      --amber-soft: #faead8;
+      --blue: #315c83;
+      --blue-soft: #e3edf6;
+      --red: #a1443d;
+      --shadow: 0 18px 44px rgba(41, 49, 40, .09);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(183, 101, 34, .12), transparent 24rem),
+        radial-gradient(circle at 88% 12%, rgba(31, 107, 79, .12), transparent 26rem),
+        var(--bg);
+      font-family: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      line-height: 1.65;
+    }
+
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    code, pre { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+    code { color: #71401d; }
+
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+
+    header { padding: 58px 0 30px; }
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--green);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; max-width: 850px; font-size: clamp(2.25rem, 6vw, 5.2rem); line-height: 1.02; letter-spacing: -.055em; }
+    .lede { max-width: 760px; margin: 22px 0 0; color: var(--muted); font-size: 1.08rem; }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+
+    .button {
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: var(--ink);
+      color: white;
+      font-weight: 750;
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+    .button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(32, 37, 31, .14); }
+    .button.secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+    .button.danger { color: var(--red); }
+
+    .dashboard { display: grid; grid-template-columns: 1.35fr .65fr; gap: 18px; margin-bottom: 20px; }
+    .panel { background: rgba(255, 253, 247, .88); border: 1px solid rgba(94, 101, 88, .18); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .current { padding: 26px; }
+    .current-label { color: var(--amber); font-size: .76rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .current h2 { margin: 5px 0 8px; font-size: clamp(1.35rem, 3vw, 2.1rem); line-height: 1.18; }
+    .current p { margin: 0; color: var(--muted); }
+
+    .progress-panel { padding: 24px; display: grid; align-content: center; }
+    .progress-row { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+    .progress-number { font-size: 2.4rem; font-weight: 900; line-height: 1; letter-spacing: -.05em; }
+    .progress-caption { color: var(--muted); font-size: .88rem; }
+    .track { height: 11px; margin-top: 16px; background: #e5e4dc; border-radius: 99px; overflow: hidden; }
+    .bar { width: 0; height: 100%; background: linear-gradient(90deg, var(--amber), var(--green)); border-radius: inherit; transition: width .3s ease; }
+
+    .section { margin: 22px 0 44px; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+    .section h2 { margin: 0; font-size: clamp(1.45rem, 3vw, 2rem); letter-spacing: -.025em; }
+    .section-intro { margin: 4px 0 0; color: var(--muted); }
+
+    .pipeline { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 12px; align-items: center; padding: 22px; }
+    .stage { min-height: 132px; padding: 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--paper); }
+    .stage b { display: block; margin-bottom: 6px; font-size: 1.08rem; }
+    .stage small { color: var(--muted); }
+    .stage.if { border-top: 4px solid var(--blue); }
+    .stage.id { border-top: 4px solid var(--amber); }
+    .stage.ex { border-top: 4px solid var(--green); }
+    .arrow { color: var(--muted); font-size: 1.45rem; font-weight: 900; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: var(--paper); }
+    th, td { padding: 13px 15px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); background: #f4f3ec; font-size: .77rem; letter-spacing: .07em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .status { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 99px; padding: 3px 9px; font-size: .78rem; font-weight: 800; }
+    .status.ready { color: var(--green); background: var(--green-soft); }
+    .status.partial { color: var(--amber); background: var(--amber-soft); }
+    .status.missing { color: var(--red); background: #f8e2df; }
+
+    .roadmap-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+    .filter { border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; color: var(--muted); background: rgba(255, 253, 247, .65); font-size: .88rem; font-weight: 750; }
+    .filter.active { color: white; border-color: var(--green); background: var(--green); }
+
+    .phase { margin: 22px 0 10px; color: var(--green); font-size: .82rem; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
+    .steps { display: grid; gap: 12px; }
+    .step { overflow: hidden; background: var(--paper); border: 1px solid var(--line); border-radius: 15px; transition: opacity .2s, border-color .2s, transform .2s; }
+    .step:hover { border-color: #adaf9e; }
+    .step.is-current { border: 2px solid var(--amber); box-shadow: 0 10px 28px rgba(183, 101, 34, .12); }
+    .step.is-done { opacity: .72; }
+    .step.is-done .step-title { text-decoration: line-through; text-decoration-color: rgba(32, 37, 31, .32); }
+    .step[hidden], .phase[hidden] { display: none; }
+    .step-head { display: grid; grid-template-columns: auto 42px 1fr auto; gap: 13px; align-items: center; width: 100%; padding: 15px 17px; }
+    .step-check { width: 21px; height: 21px; accent-color: var(--green); }
+    .step-number { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: #eeede5; font-weight: 900; }
+    .step-title { display: block; font-weight: 850; }
+    .step-summary { display: block; color: var(--muted); font-size: .88rem; }
+    .toggle { border: 0; padding: 8px; color: var(--muted); background: transparent; font-size: 1.1rem; }
+    .step-body { display: none; padding: 0 18px 19px 94px; }
+    .step.open .step-body { display: block; }
+    .step.open .toggle { transform: rotate(180deg); }
+    .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .detail { padding: 13px; border-radius: 11px; background: #f4f3ec; }
+    .detail b { display: block; margin-bottom: 4px; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+    .detail p, .detail ul { margin: 0; color: #4f594f; font-size: .9rem; }
+    .detail ul { padding-left: 18px; }
+    .step-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .small-button { border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px; background: var(--paper); color: var(--ink); font-size: .84rem; font-weight: 750; }
+    .small-button:hover { border-color: var(--green); color: var(--green); }
+
+    .callout { padding: 20px 22px; border-left: 5px solid var(--amber); }
+    .callout h3 { margin: 0 0 4px; }
+    .callout p { margin: 0; color: var(--muted); }
+    .callout code { overflow-wrap: anywhere; }
+
+    .notes { width: 100%; min-height: 170px; resize: vertical; padding: 16px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 13px; outline: none; }
+    .notes:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31, 107, 79, .1); }
+    .saved { min-height: 1.5em; margin: 7px 2px 0; color: var(--green); font-size: .82rem; }
+
+    footer { padding: 20px 0 48px; color: var(--muted); font-size: .88rem; }
+
+    .toast { position: fixed; right: 18px; bottom: 18px; z-index: 9; max-width: min(390px, calc(100% - 36px)); padding: 12px 16px; color: white; background: var(--ink); border-radius: 11px; box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 800px) {
+      header { padding-top: 36px; }
+      .dashboard, .detail-grid { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); justify-self: center; }
+      .step-head { grid-template-columns: auto 36px 1fr auto; gap: 8px; padding: 13px 12px; }
+      .step-body { padding: 0 13px 15px; }
+      .section-head { align-items: start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <p class="eyebrow">Build log · RV32I · 3-stage pipeline</p>
+    <h1>把 CPU 骨架，變成真的會跑程式的處理器。</h1>
+    <p class="lede">這份導航依照你目前的 SystemVerilog 專案編排。一次只處理一個可驗收的小目標；勾選進度會自動保存在這台電腦的瀏覽器。</p>
+    <div class="header-actions">
+      <button class="button" id="jumpCurrent">前往目前步驟</button>
+      <button class="button secondary" id="exportProgress">匯出進度</button>
+      <button class="button secondary danger" id="resetProgress">重設勾選</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="dashboard" aria-label="目前進度摘要">
+      <article class="panel current">
+        <span class="current-label">現在只專注這一件事</span>
+        <h2 id="currentTitle">01 · 建立可重複的模擬流程</h2>
+        <p id="currentDescription">先選定模擬器並確認現有 testbench 能編譯、執行；沒有這一步，後續每個功能都無法可靠驗收。</p>
+      </article>
+      <article class="panel progress-panel">
+        <div class="progress-row">
+          <div><span class="progress-number" id="progressPercent">0%</span></div>
+          <div class="progress-caption"><span id="doneCount">0</span> / <span id="totalCount">0</span> 完成</div>
+        </div>
+        <div class="track" aria-label="總進度"><div class="bar" id="progressBar"></div></div>
+      </article>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>目標架構</h2>
+          <p class="section-intro">先以容易理解和驗證為優先：第三級合併執行、記憶體存取與回寫。</p>
+        </div>
+      </div>
+      <div class="panel pipeline">
+        <div class="stage if"><b>IF · 取指</b><small>PC → Program ROM<br>保存 PC 與 instruction 至 IF/ID</small></div>
+        <div class="arrow">→</div>
+        <div class="stage id"><b>ID · 解碼</b><small>拆解指令、讀 Register File、產生 immediate 與控制訊號</small></div>
+        <div class="arrow">→</div>
+        <div class="stage ex"><b>EX / MEM / WB</b><small>ALU、branch、Data Memory，以及將結果回寫 rd</small></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>已讀取的專案現況</h2>
+          <p class="section-intro">「已建立」代表骨架存在；仍需經過測試才算功能完成。</p>
+        </div>
+      </div>
+      <div class="panel table-wrap">
+        <table>
+          <thead><tr><th>檔案／模組</th><th>目前內容</th><th>判定</th><th>接下來要補</th></tr></thead>
+          <tbody>
+            <tr><td><code>PC.sv</code></td><td>reset、正常更新與 stall hold；優先權測試通過</td><td><span class="status ready">已驗證</span></td><td>分支階段加入 next-PC 選路</td></tr>
+            <tr><td><code>Program_ROM.sv</code></td><td>I/R-type 與連續 RAW 相依測試程式</td><td><span class="status ready">已驗證</span></td><td>之後改良程式映像載入方式</td></tr>
+            <tr><td><code>IFID.sv</code></td><td>保存 instruction，支援 flush 與 stall hold</td><td><span class="status ready">已驗證</span></td><td>分支階段再加入 instruction PC</td></tr>
+            <tr><td><code>Inst_Decoder.sv</code></td><td>欄位拆解與 I-type immediate；單元測試通過</td><td><span class="status ready">已驗證</span></td><td>之後加入 S/B/U/J immediate</td></tr>
+            <tr><td><code>Reg_File.sv</code></td><td>雙讀單寫、x0 固定為 0；I/R-type writeback 通過</td><td><span class="status ready">已驗證</span></td><td>之後整合 load writeback</td></tr>
+            <tr><td><code>IDEX.sv</code></td><td>同步保存資料與四個控制訊號；reset/flush 測試通過</td><td><span class="status ready">已驗證</span></td><td>分支階段再加入 instruction PC</td></tr>
+            <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，已接入 EX stage</td><td><span class="status ready">已驗證</span></td><td>之後作為 branch address／compare 基礎</td></tr>
+            <tr><td><code>Control_Unit.sv</code></td><td>完整 I/R-type ALU control 與非法編碼安全值</td><td><span class="status ready">已驗證</span></td><td>下一階段擴充 U/J/B 與 memory control</td></tr>
+            <tr><td><code>Forwarding_Unit.sv</code></td><td>EX→ID rs1/rs2 bypass，含 x0 與 RegWrite 保護</td><td><span class="status ready">已驗證</span></td><td>load 加入後調整 forwarding 時機</td></tr>
+            <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>三級 I/R-type 資料路徑、forwarding 與 stall/bubble 框架</td><td><span class="status partial">整合中</span></td><td>下一步準備完整 immediate 與控制流程</td></tr>
+            <tr><td><code>tb_CPU_Top.sv</code></td><td>x0～x23 architectural state 與 forwarding 自動檢查</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
+            <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="roadmap">
+      <div class="section-head">
+        <div>
+          <h2>依序完成清單</h2>
+          <p class="section-intro">展開步驟查看工作內容；只有通過驗收條件後才勾選。</p>
+        </div>
+        <div class="roadmap-tools" aria-label="清單篩選">
+          <button class="filter active" data-filter="all">全部</button>
+          <button class="filter" data-filter="todo">未完成</button>
+          <button class="filter" data-filter="done">已完成</button>
+        </div>
+      </div>
+
+      <div id="steps"></div>
+    </section>
+
+    <section class="section panel callout">
+      <h3>第一個明確的功能終點</h3>
+      <p>ROM 第一條指令 <code>addi x1, x0, -5</code> 經過三級管線後，Register File 的 <code>x1</code> 必須等於 <code>32'hFFFF_FFFB</code>，而且 testbench 會自動判定成功或失敗。</p>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>學習筆記與卡點</h2>
+          <p class="section-intro">記錄看不懂的訊號、模擬錯誤或下一次要做的事；內容會自動保存。</p>
+        </div>
+      </div>
+      <textarea class="notes" id="notes" placeholder="例如：不確定 RegWrite 應該在哪一級產生；波形中的 x1 一直是 0……"></textarea>
+      <div class="saved" id="saveState" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="shell">這份頁面是你的實作導航，不是規格書。每完成一步，都應保留能重複執行的測試。</footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const phases = [
+      {
+        name: "Milestone 1 · 建立驗證地基",
+        steps: [
+          {
+            id: "simulator",
+            title: "建立可重複的模擬流程",
+            summary: "先確保每次修改後都能快速知道對不對。",
+            goal: "選定 Icarus Verilog、Verilator、Vivado Simulator 或 ModelSim 其中一套，成功編譯並執行現有 tb_CPU_Top。",
+            files: "tb_CPU_Top.sv，以及之後新增的模擬腳本或專案設定。",
+            work: ["確認工具可執行", "編譯所有 .sv", "跑到 $stop", "能查看錯誤訊息或波形"],
+            verify: "從乾淨狀態用固定流程完成 compile → simulate，沒有語法錯誤。",
+            caution: "目前命令列未找到 iverilog、Verilator、vvp、GTKWave；若你使用 Vivado/ModelSim，可沿用既有 GUI。"
+          },
+          {
+            id: "baseline-tests",
+            title: "替現有基礎模組補單元測試",
+            summary: "先證明 PC、管線暫存器與 Register File 正確。",
+            goal: "把 PC、IFID、IDEX、Reg_File、Inst_Decoder 分開驗證，避免整合後才尋找基礎錯誤。",
+            files: "新增 tb_PC.sv、tb_Reg_File.sv、tb_Inst_Decoder.sv 等測試檔。",
+            work: ["驗證 reset", "驗證 flush 會插入 NOP", "驗證 x0 無法寫入", "驗證負數 immediate sign extension"],
+            verify: "testbench 使用 if/$fatal 或 assertion 自動判定，不需要靠肉眼看波形。",
+            caution: "測試檔不要只等待固定時間；每個預期值都要明確比對。"
+          }
+        ]
+      },
+      {
+        name: "Milestone 2 · 跑通第一條指令",
+        steps: [
+          {
+            id: "alu",
+            title: "建立 ALU 與單元測試",
+            summary: "把 defines.sv 已列出的 10 種 ALU operation 真的做出來。",
+            goal: "建立純組合邏輯 ALU，輸入 operand A/B 與 alu_op，輸出 result。",
+            files: "新增 ALU.sv、tb_ALU.sv；沿用 defines.sv 的 ALUOP_*。",
+            work: ["ADD/SUB", "AND/OR/XOR", "SLT/SLTU", "SLL/SRL/SRA", "NOP/default"],
+            verify: "特別測過負數、有號/無號比較，以及 SRA 的符號延伸。",
+            caution: "SLT 與 SRA 需要 $signed；shift amount 應只使用 operand B[4:0]。"
+          },
+          {
+            id: "instruction-control",
+            title: "建立指令控制解碼",
+            summary: "讓 opcode、funct3、funct7 轉成資料路徑控制訊號。",
+            goal: "先只支援 ADDI；產生 reg_write、alu_src_imm、alu_op 與合法指令訊號。",
+            files: "建議新增 Control_Unit.sv，不要把 instruction control 混進目前只負責啟動的 Controller.sv。",
+            work: ["所有輸出先給安全預設值", "辨識 Opcode_I + F_ADDI", "非法指令必須 reg_write=0"],
+            verify: "ADDI 產生 ADD、使用 immediate、允許回寫；NOP 不會寫 x0 以外暫存器。",
+            caution: "always_comb 中每個輸出都必須在所有路徑賦值，以免推導 latch。"
+          },
+          {
+            id: "pipeline-payload",
+            title: "讓控制訊號通過 ID/EX",
+            summary: "指令到第三級時仍要知道『做什麼、寫到哪裡』。",
+            goal: "IDEX 同步保存 rd、operands、immediate、RegWrite、ALU source、ALU operation 與 valid。",
+            files: "IDEX.sv、Control_Unit.sv、CPU_Top.sv、tb_IDEX.sv。",
+            work: ["ID/EX 加入 reg_write", "ID/EX 加入 alu_src_imm、alu_op、valid", "reset/flush 清除所有控制訊號", "CPU Top 接入 Control Unit"],
+            verify: "單元測試證明資料與 control 在第三級保持對齊，且 CPU smoke test 可通過。",
+            caution: "flush 最重要的是關閉副作用：RegWrite、MemWrite 必須變成 0。"
+          },
+          {
+            id: "addi-writeback",
+            title: "接通 ADDI 執行與回寫",
+            summary: "完成第一條真正改變 CPU 狀態的指令。",
+            goal: "ALU 選 rs1 與 immediate，結果在時脈邊緣寫回 Register File 的 rd。",
+            files: "CPU_Top.sv、tb_CPU_Top.sv。",
+            work: ["實例化 Control_Unit", "實例化 ALU", "移除 write_regf_en_r=0 暫接線", "將 EX 級 rd/control/result 接到 Reg_File"],
+            verify: "addi x1,x0,-5 完成後 x1 == 32'hFFFF_FFFB，testbench 自動通過。",
+            caution: "同一個訊號只能有一個 driver；移除目前 write_regf_en_r 與 rd_value_ 的固定 assign。"
+          },
+          {
+            id: "itype",
+            title: "完成 I-type 算術與位移",
+            summary: "擴大第一批不含記憶體的指令集合。",
+            goal: "支援 ADDI、SLTI、SLTIU、XORI、ORI、ANDI、SLLI、SRLI、SRAI。",
+            files: "Control_Unit.sv、Inst_Decoder.sv、Program_ROM.sv、tb_CPU_Top.sv。",
+            work: ["依 funct3 選 ALU op", "SRLI/SRAI 再檢查 funct7", "測邊界與負數"],
+            verify: "每一條指令至少有正常、邊界或負數案例，全部自動比對。",
+            caution: "shift-immediate 的高位同時含 funct7 資訊，不能把完整 12-bit immediate 當 shift amount。"
+          },
+          {
+            id: "rtype",
+            title: "完成 R-type 整數運算",
+            summary: "第二個 operand 改由 rs2 提供。",
+            goal: "支援 ADD、SUB、SLL、SLT、SLTU、XOR、SRL、SRA、OR、AND。",
+            files: "Control_Unit.sv、Program_ROM.sv、tb_CPU_Top.sv。",
+            work: ["alu_src_imm=0", "ADD/SUB 檢查 funct7", "SRL/SRA 檢查 funct7", "覆蓋所有 funct3"],
+            verify: "在相依指令之間先插足夠 NOP 時，所有 R-type 結果正確。",
+            caution: "這一步暫時允許手動插 NOP；下一個 milestone 才消除相依問題。"
+          }
+        ]
+      },
+      {
+        name: "Milestone 3 · 讓管線處理相依性",
+        steps: [
+          {
+            id: "hazard-observe",
+            title: "用測試重現 RAW hazard",
+            summary: "先看見錯誤，再設計解法。",
+            goal: "建立連續相依程式，記錄 ID 讀到舊值的週期。",
+            files: "Program_ROM.sv、tb_CPU_Top.sv。",
+            work: ["EX.rd 對比 ID.rs1/rs2", "排除 rd=x0", "區分真正會讀 rs2 的指令"],
+            verify: "能用一張波形或週期表說明錯誤值從哪裡來。",
+            caution: "不要看到暫存器編號相同就一律判 hazard；部分 I-type 的 [24:20] 不是 rs2。"
+          },
+          {
+            id: "forwarding",
+            title: "加入 EX → ID/EX forwarding",
+            summary: "前一條結果直接供下一條使用。",
+            goal: "當 EX 將寫入的 rd 等於 ID 使用的 rs1/rs2 時，選擇最新 ALU/writeback value。",
+            files: "建議新增 Forwarding_Unit.sv，修改 CPU_Top.sv。",
+            work: ["rs1 forwarding", "rs2 forwarding", "rd=x0 不轉送", "operand mux 優先順序"],
+            verify: "連續 addi x1,x0,5；addi x2,x1,3；add x3,x2,x1 得到 5、8、13。",
+            caution: "轉送判斷要使用有效 RegWrite；被 flush 的指令不可被當成來源。"
+          },
+          {
+            id: "stall-framework",
+            title: "建立 stall / bubble 框架",
+            summary: "為之後無法立即轉送的情境準備。",
+            goal: "stall framework 可以凍結 PC 與 IFID，並把送入 IDEX 的控制訊號清為 NOP。",
+            files: "PC.sv、IFID.sv、IDEX.sv、CPU_Top.sv 與各模組測試。",
+            work: ["PC enable", "IFID enable", "IDEX bubble", "stall 與 flush 優先順序"],
+            verify: "單元測試證明 PC/IFID 可保持且 reset/flush 優先；CPU 回歸維持通過。",
+            caution: "凍結所有級通常會死鎖；bubble 與 hold 的位置必須分清楚。"
+          }
+        ]
+      },
+      {
+        name: "Milestone 4 · 控制流程",
+        steps: [
+          {
+            id: "immediates",
+            title: "完成五種 immediate 格式",
+            summary: "I、S、B、U、J 都要依規格重新排列並 sign-extend。",
+            goal: "Inst_Decoder 能依 opcode 產生正確 immediate。",
+            files: "Inst_Decoder.sv、對應單元測試。",
+            work: ["I-type", "S-type", "B-type", "U-type", "J-type"],
+            verify: "正位移、負位移與最低 bit 固定為 0 的案例全部通過。",
+            caution: "B/J immediate 在 instruction 中不是連續欄位，務必逐 bit 對照 RV32I 格式。"
+          },
+          {
+            id: "upper",
+            title: "支援 LUI 與 AUIPC",
+            summary: "讓 ALU 可選 PC 或零作為 operand A。",
+            goal: "LUI 寫入 U-immediate；AUIPC 寫入 PC + U-immediate。",
+            files: "defines.sv、Control_Unit.sv、IDEX.sv、CPU_Top.sv。",
+            work: ["operand A mux", "攜帶 instruction PC", "回寫測試"],
+            verify: "LUI 與 AUIPC 在非零 PC 地址的結果皆正確。",
+            caution: "AUIPC 使用的是該指令自己的 PC，不是目前 IF 階段的新 PC。"
+          },
+          {
+            id: "branch",
+            title: "支援六種條件分支",
+            summary: "計算 target、比較 operands，並 flush 已取到的錯誤路徑。",
+            goal: "支援 BEQ、BNE、BLT、BGE、BLTU、BGEU。",
+            files: "Control_Unit.sv、CPU_Top.sv、Controller.sv／branch control、測試程式。",
+            work: ["PC + B-immediate", "signed/unsigned compare", "taken 時改寫 PC", "flush IFID/IDEX 的錯誤指令"],
+            verify: "每種 branch 至少測 taken 與 not-taken，包含向前與向後跳。",
+            caution: "branch 在第三級決定時，前方已有兩條錯誤路徑指令，兩者都不能產生副作用。"
+          },
+          {
+            id: "jump",
+            title: "支援 JAL 與 JALR",
+            summary: "同時處理跳躍目標與 PC+4 回寫。",
+            goal: "JAL/JALR 的 rd 得到該指令 PC+4，PC 前往正確 target。",
+            files: "Control_Unit.sv、IDEX.sv、CPU_Top.sv、測試程式。",
+            work: ["writeback mux", "JAL target", "JALR target", "flush"],
+            verify: "函式式跳躍與返回測試通過；JALR target bit 0 被清為 0。",
+            caution: "JALR 的 target 是 (rs1 + imm) & ~1。"
+          }
+        ]
+      },
+      {
+        name: "Milestone 5 · 記憶體與完整 RV32I 子集",
+        steps: [
+          {
+            id: "data-memory",
+            title: "建立 Data Memory",
+            summary: "先定義讀寫時序與 byte enable，再接 CPU。",
+            goal: "提供 word address、write data、byte enable、write enable 與 read data。",
+            files: "新增 Data_Memory.sv 與 tb_Data_Memory.sv。",
+            work: ["word 對齊", "4-bit byte enable", "同步寫入", "定義讀取是組合或同步"],
+            verify: "各 byte lane 可獨立寫入，未被 enable 的 byte 不改變。",
+            caution: "三級設計最容易先採組合讀取；若目標 FPGA RAM 是同步讀取，可能需要調整 pipeline。"
+          },
+          {
+            id: "stores",
+            title: "支援 SB、SH、SW",
+            summary: "依地址低兩位產生 byte enable 與對齊後資料。",
+            goal: "三種 store 正確修改 Data Memory，且不寫 Register File。",
+            files: "Control_Unit.sv、CPU_Top.sv、Data_Memory.sv、測試。",
+            work: ["S-immediate", "address=rs1+imm", "byte/half/word enable", "misaligned policy"],
+            verify: "在四種 byte offset 寫入後逐 byte 檢查 memory。",
+            caution: "先明確決定未對齊存取是列為不支援，還是額外實作。"
+          },
+          {
+            id: "loads",
+            title: "支援 LB、LH、LW、LBU、LHU",
+            summary: "擷取正確 byte/half，再做 sign 或 zero extension。",
+            goal: "load data 經 writeback mux 回寫 rd。",
+            files: "Control_Unit.sv、CPU_Top.sv、Data_Memory.sv、測試。",
+            work: ["讀取對齊", "LB/LH sign extension", "LBU/LHU zero extension", "MemToReg mux"],
+            verify: "最高 bit 為 1 的 byte/half 可區分 signed 與 unsigned 結果。",
+            caution: "load 的 forwarding 時機取決於 Data Memory 的讀取時序。"
+          },
+          {
+            id: "load-hazard",
+            title: "完成 load-use hazard",
+            summary: "若資料來不及 forwarding，就精確 stall 一次。",
+            goal: "lw 後一條立即使用 rd 時仍得到最新記憶體資料。",
+            files: "Hazard_Unit.sv、Forwarding_Unit.sv、CPU_Top.sv、測試。",
+            work: ["辨識 load", "比較 rd 與有效 source registers", "插 bubble", "下一週期 forwarding"],
+            verify: "lw x1,0(x2) 後緊接 add x3,x1,x4，無手動 NOP 也正確。",
+            caution: "只在真正讀取該 source 的指令 stall，避免不必要的效能損失。"
+          }
+        ]
+      },
+      {
+        name: "Milestone 6 · 從能跑到可信",
+        steps: [
+          {
+            id: "illegal",
+            title: "定義 illegal instruction 與安全預設行為",
+            summary: "不認識的編碼絕不能意外改變狀態。",
+            goal: "所有不支援的 opcode/funct 組合都轉成無副作用操作。",
+            files: "Control_Unit.sv、測試。",
+            work: ["illegal flag", "RegWrite=0", "MemWrite=0", "可選擇停機或記錄"],
+            verify: "注入多種非法編碼後，register 與 memory 完全不變。",
+            caution: "SystemVerilog unique case 的 warning 不能取代硬體中的安全 default。"
+          },
+          {
+            id: "program-test",
+            title: "執行整合小程式",
+            summary: "用迴圈與記憶體操作驗證各功能會一起工作。",
+            goal: "執行至少一個陣列加總或 Fibonacci 程式。",
+            files: "程式映像、Program_ROM.sv 或載入機制、整合 testbench。",
+            work: ["定義完成訊號或 sentinel", "限制最大 cycle 防止死迴圈", "檢查最後 register/memory"],
+            verify: "程式在 cycle 上限內結束，最終結果符合軟體計算。",
+            caution: "整合測試失敗時，回到最小可重現的指令序列，不要只盯著長波形。"
+          },
+          {
+            id: "reference",
+            title: "建立退休指令紀錄與參考比對",
+            summary: "讓 CPU 結果能與 RISC-V 模型逐條核對。",
+            goal: "每條有效指令輸出 PC、instruction、rd、write data、memory side effect。",
+            files: "CPU_Top.sv、testbench、可選的比對腳本。",
+            work: ["valid/retire 概念", "trace log", "與 Spike/QEMU 或自製模型比對"],
+            verify: "混合指令測試的 architectural state 與參考模型一致。",
+            caution: "比較 architectural state，不要要求不同微架構每一個 cycle 的內部訊號相同。"
+          },
+          {
+            id: "documentation",
+            title: "整理 README 與設計圖",
+            summary: "把架構、限制與重現方式留給未來的自己。",
+            goal: "新環境照 README 可執行測試，並清楚知道支援哪些 RV32I 指令。",
+            files: "README.md、架構圖、測試指令。",
+            work: ["module 職責", "pipeline diagram", "supported ISA", "build/test command", "known limitations"],
+            verify: "從零照文件操作能成功跑完自動測試。",
+            caution: "文件內容以實際測試通過的功能為準，不把預計功能寫成已完成。"
+          }
+        ]
+      }
+    ];
+
+    const STORAGE_KEY = "rv32i-cpu-learning-progress-v1";
+    const NOTES_KEY = "rv32i-cpu-learning-notes-v1";
+    const VERIFIED_STEPS = [
+      "simulator",
+      "baseline-tests",
+      "alu",
+      "instruction-control",
+      "pipeline-payload",
+      "addi-writeback",
+      "itype",
+      "rtype",
+      "hazard-observe",
+      "forwarding",
+      "stall-framework"
+    ];
+    const allSteps = phases.flatMap(phase => phase.steps);
+    const state = loadState();
+    let activeFilter = "all";
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const progress = saved === null ? {} : JSON.parse(saved);
+        VERIFIED_STEPS.forEach(id => { progress[id] = true; });
+        return progress;
+      }
+      catch {
+        return Object.fromEntries(VERIFIED_STEPS.map(id => [id, true]));
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function renderSteps() {
+      const root = document.getElementById("steps");
+      root.innerHTML = "";
+      let sequence = 0;
+
+      phases.forEach((phase, phaseIndex) => {
+        const heading = document.createElement("h3");
+        heading.className = "phase";
+        heading.dataset.phase = phaseIndex;
+        heading.textContent = phase.name;
+        root.appendChild(heading);
+
+        const list = document.createElement("div");
+        list.className = "steps";
+        list.dataset.phase = phaseIndex;
+
+        phase.steps.forEach(step => {
+          sequence += 1;
+          const article = document.createElement("article");
+          article.className = "step";
+          article.dataset.id = step.id;
+          article.dataset.phase = phaseIndex;
+          article.innerHTML = `
+            <div class="step-head">
+              <input class="step-check" type="checkbox" aria-label="完成 ${escapeHtml(step.title)}" ${state[step.id] ? "checked" : ""}>
+              <span class="step-number">${String(sequence).padStart(2, "0")}</span>
+              <div><span class="step-title">${escapeHtml(step.title)}</span><span class="step-summary">${escapeHtml(step.summary)}</span></div>
+              <button class="toggle" aria-label="展開步驟" aria-expanded="false">⌄</button>
+            </div>
+            <div class="step-body">
+              <div class="detail-grid">
+                <div class="detail"><b>目標</b><p>${escapeHtml(step.goal)}</p></div>
+                <div class="detail"><b>會碰到的檔案</b><p>${escapeHtml(step.files)}</p></div>
+                <div class="detail"><b>工作拆解</b><ul>${step.work.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+                <div class="detail"><b>驗收條件</b><p>${escapeHtml(step.verify)}</p></div>
+                <div class="detail"><b>容易踩雷</b><p>${escapeHtml(step.caution)}</p></div>
+              </div>
+              <div class="step-actions">
+                <button class="small-button help">複製這一步的求助內容</button>
+                <button class="small-button focus-notes">記錄卡點</button>
+              </div>
+            </div>`;
+          list.appendChild(article);
+        });
+        root.appendChild(list);
+      });
+      bindStepEvents();
+      refresh();
+    }
+
+    function bindStepEvents() {
+      document.querySelectorAll(".step").forEach(article => {
+        const id = article.dataset.id;
+        const step = allSteps.find(item => item.id === id);
+        const checkbox = article.querySelector(".step-check");
+        const toggle = article.querySelector(".toggle");
+
+        checkbox.addEventListener("change", () => {
+          state[id] = checkbox.checked;
+          saveState();
+          refresh();
+          showToast(checkbox.checked ? `完成：${step.title}` : `重新開啟：${step.title}`);
+        });
+
+        const toggleOpen = () => {
+          article.classList.toggle("open");
+          toggle.setAttribute("aria-expanded", article.classList.contains("open"));
+        };
+        toggle.addEventListener("click", toggleOpen);
+        article.querySelector(".step-title").addEventListener("click", toggleOpen);
+
+        article.querySelector(".help").addEventListener("click", async () => {
+          const prompt = `我正在完成 RV32I 三級管線 CPU 的「${step.title}」。\n目標：${step.goal}\n驗收條件：${step.verify}\n請先查看我目前專案中的實作，再帶我完成這一步；先解釋設計與要改的訊號，不要一次替我完成後續步驟。`;
+          try {
+            await navigator.clipboard.writeText(prompt);
+            showToast("求助內容已複製，可以貼到 Codex。 ");
+          } catch {
+            showToast("瀏覽器禁止剪貼簿存取，請手動複製步驟內容。 ");
+          }
+        });
+
+        article.querySelector(".focus-notes").addEventListener("click", () => {
+          const notes = document.getElementById("notes");
+          if (!notes.value.includes(step.title)) notes.value += `${notes.value ? "\n\n" : ""}【${step.title}】\n`;
+          notes.dispatchEvent(new Event("input"));
+          notes.focus();
+          notes.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      });
+    }
+
+    function refresh() {
+      const completed = allSteps.filter(step => state[step.id]).length;
+      const percent = Math.round(completed / allSteps.length * 100);
+      const current = allSteps.find(step => !state[step.id]);
+
+      document.getElementById("doneCount").textContent = completed;
+      document.getElementById("totalCount").textContent = allSteps.length;
+      document.getElementById("progressPercent").textContent = `${percent}%`;
+      document.getElementById("progressBar").style.width = `${percent}%`;
+
+      if (current) {
+        const number = allSteps.indexOf(current) + 1;
+        document.getElementById("currentTitle").textContent = `${String(number).padStart(2, "0")} · ${current.title}`;
+        document.getElementById("currentDescription").textContent = current.goal;
+      } else {
+        document.getElementById("currentTitle").textContent = "全部完成 · 你的 CPU 已走完整條驗證路線";
+        document.getElementById("currentDescription").textContent = "保留測試與紀錄，接下來可以挑戰 CSR、interrupt、cache 或 FPGA 部署。";
+      }
+
+      document.querySelectorAll(".step").forEach(article => {
+        article.classList.toggle("is-done", Boolean(state[article.dataset.id]));
+        article.classList.toggle("is-current", current && article.dataset.id === current.id);
+      });
+      applyFilter();
+    }
+
+    function applyFilter() {
+      document.querySelectorAll(".step").forEach(article => {
+        const done = Boolean(state[article.dataset.id]);
+        article.hidden = activeFilter === "done" ? !done : activeFilter === "todo" ? done : false;
+      });
+      document.querySelectorAll(".phase").forEach(heading => {
+        const phaseIndex = heading.dataset.phase;
+        const visible = [...document.querySelectorAll(`.step[data-phase="${phaseIndex}"]`)].some(step => !step.hidden);
+        heading.hidden = !visible;
+        const list = document.querySelector(`.steps[data-phase="${phaseIndex}"]`);
+        if (list) list.hidden = !visible;
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+    }
+
+    let toastTimer;
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2400);
+    }
+
+    document.querySelectorAll(".filter").forEach(button => {
+      button.addEventListener("click", () => {
+        activeFilter = button.dataset.filter;
+        document.querySelectorAll(".filter").forEach(item => item.classList.toggle("active", item === button));
+        applyFilter();
+      });
+    });
+
+    document.getElementById("jumpCurrent").addEventListener("click", () => {
+      const current = allSteps.find(step => !state[step.id]);
+      if (!current) return showToast("所有步驟都完成了！");
+      activeFilter = "all";
+      document.querySelectorAll(".filter").forEach(item => item.classList.toggle("active", item.dataset.filter === "all"));
+      applyFilter();
+      const article = document.querySelector(`.step[data-id="${current.id}"]`);
+      article.classList.add("open");
+      article.querySelector(".toggle").setAttribute("aria-expanded", "true");
+      article.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    document.getElementById("resetProgress").addEventListener("click", () => {
+      if (!confirm("確定要清除尚未驗收的手動勾選嗎？已驗收進度與學習筆記會保留。")) return;
+      Object.keys(state).forEach(key => delete state[key]);
+      VERIFIED_STEPS.forEach(id => { state[id] = true; });
+      saveState();
+      document.querySelectorAll(".step").forEach(article => {
+        article.querySelector(".step-check").checked = Boolean(state[article.dataset.id]);
+      });
+      refresh();
+      showToast("未驗收的手動勾選已重設。 ");
+    });
+
+    document.getElementById("exportProgress").addEventListener("click", () => {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        completed: allSteps.filter(step => state[step.id]).map(step => step.title),
+        next: allSteps.find(step => !state[step.id])?.title || "全部完成",
+        notes: document.getElementById("notes").value
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "rv32i-cpu-progress.json";
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast("進度已匯出。 ");
+    });
+
+    const notes = document.getElementById("notes");
+    notes.value = localStorage.getItem(NOTES_KEY) || "";
+    let saveTimer;
+    notes.addEventListener("input", () => {
+      clearTimeout(saveTimer);
+      document.getElementById("saveState").textContent = "儲存中…";
+      saveTimer = setTimeout(() => {
+        localStorage.setItem(NOTES_KEY, notes.value);
+        document.getElementById("saveState").textContent = "已自動儲存";
+      }, 350);
+    });
+
+    renderSteps();
+  </script>
+</body>
+</html>
