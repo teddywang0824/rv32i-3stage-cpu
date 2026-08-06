@@ -14,8 +14,10 @@ module IDEX (
     // pass by control unit
     input logic reg_write_,
     input logic alu_src_imm_,
+    input logic [1:0] operand_a_sel_,
     input logic [3:0] alu_op_,
     input logic valid_inst_,
+    input logic [31:0] ifid_pc_,
 
     output logic [4:0] addr_rd_r,
     output logic [31:0] imm_r,
@@ -25,7 +27,9 @@ module IDEX (
     output logic reg_write_r,
     output logic [3:0] alu_op_r,
     output logic alu_src_imm_r,
-    output logic valid_inst_r
+    output logic [1:0] operand_a_sel_r,
+    output logic valid_inst_r,
+    output logic [31:0] idex_pc_r
 );
 
     always_ff @(posedge clk) begin
@@ -39,6 +43,9 @@ module IDEX (
             alu_src_imm_r <= 1'b0;
             alu_op_r <= `ALUOP_NOP;
             valid_inst_r <= 1'b0;
+
+            operand_a_sel_r <= 2'b0;
+            idex_pc_r <= 32'b0;
         end
         else if (flush_IDEX_) begin
             addr_rd_r   <= 5'd0;
@@ -50,6 +57,9 @@ module IDEX (
             alu_src_imm_r <= 1'b0;
             alu_op_r <= `ALUOP_NOP;
             valid_inst_r <= 1'b0;
+
+            operand_a_sel_r <= 2'b0;
+            idex_pc_r <= 32'b0;
         end
         else begin
             addr_rd_r   <= addr_rd_;
@@ -61,6 +71,9 @@ module IDEX (
             alu_src_imm_r <= alu_src_imm_;
             alu_op_r <= alu_op_;
             valid_inst_r <= valid_inst_;
+
+            operand_a_sel_r <= operand_a_sel_;
+            idex_pc_r <= ifid_pc_;
         end
     end
 

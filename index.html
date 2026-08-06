@@ -219,16 +219,16 @@
           <tbody>
             <tr><td><code>PC.sv</code></td><td>reset、正常更新與 stall hold；優先權測試通過</td><td><span class="status ready">已驗證</span></td><td>分支階段加入 next-PC 選路</td></tr>
             <tr><td><code>Program_ROM.sv</code></td><td>I/R-type 與連續 RAW 相依測試程式</td><td><span class="status ready">已驗證</span></td><td>之後改良程式映像載入方式</td></tr>
-            <tr><td><code>IFID.sv</code></td><td>保存 instruction，支援 flush 與 stall hold</td><td><span class="status ready">已驗證</span></td><td>分支階段再加入 instruction PC</td></tr>
+            <tr><td><code>IFID.sv</code></td><td>同步保存 instruction 與其 PC，支援 flush 與 stall hold</td><td><span class="status ready">已驗證</span></td><td>分支階段沿用 instruction PC 計算 target</td></tr>
             <tr><td><code>Inst_Decoder.sv</code></td><td>欄位拆解與 I/S/B/U/J immediate；正負值與 opcode 單元測試通過</td><td><span class="status ready">已驗證</span></td><td>隨後續指令擴充欄位與合法性檢查</td></tr>
             <tr><td><code>Reg_File.sv</code></td><td>雙讀單寫、x0 固定為 0；I/R-type writeback 通過</td><td><span class="status ready">已驗證</span></td><td>之後整合 load writeback</td></tr>
-            <tr><td><code>IDEX.sv</code></td><td>同步保存資料與四個控制訊號；reset/flush 測試通過</td><td><span class="status ready">已驗證</span></td><td>分支階段再加入 instruction PC</td></tr>
+            <tr><td><code>IDEX.sv</code></td><td>同步保存資料、控制訊號、operand-A 選擇與 instruction PC</td><td><span class="status ready">已驗證</span></td><td>分支階段再加入 branch 控制訊號</td></tr>
             <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，已接入 EX stage</td><td><span class="status ready">已驗證</span></td><td>之後作為 branch address／compare 基礎</td></tr>
-            <tr><td><code>Control_Unit.sv</code></td><td>完整 I/R-type ALU control 與非法編碼安全值</td><td><span class="status ready">已驗證</span></td><td>下一階段擴充 U/J/B 與 memory control</td></tr>
+            <tr><td><code>Control_Unit.sv</code></td><td>I/R-type、LUI/AUIPC control 與非法編碼安全值</td><td><span class="status ready">已驗證</span></td><td>下一階段擴充 branch/jump 與 memory control</td></tr>
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX→ID rs1/rs2 bypass，含 x0 與 RegWrite 保護</td><td><span class="status ready">已驗證</span></td><td>load 加入後調整 forwarding 時機</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Top.sv</code></td><td>三級 I/R-type 資料路徑、forwarding 與 stall/bubble 框架</td><td><span class="status partial">整合中</span></td><td>下一步支援 LUI/AUIPC 控制與資料路徑</td></tr>
-            <tr><td><code>tb_CPU_Top.sv</code></td><td>x0～x23 architectural state 與 forwarding 自動檢查</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>三級 I/R/LUI/AUIPC 資料路徑、forwarding 與 stall/bubble 框架</td><td><span class="status partial">整合中</span></td><td>下一步支援條件分支與控制流 flush</td></tr>
+            <tr><td><code>tb_CPU_Top.sv</code></td><td>x0～x25 architectural state、forwarding 與非零 PC AUIPC 自動檢查</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
             <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
           </tbody>
         </table>
@@ -549,7 +549,8 @@
       "hazard-observe",
       "forwarding",
       "stall-framework",
-      "immediates"
+      "immediates",
+      "upper"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();

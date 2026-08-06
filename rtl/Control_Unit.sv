@@ -6,6 +6,7 @@ module Control_Unit (
     input logic [6:0] funct7_,
 
     output logic reg_write_,
+    output logic [1:0] operand_a_sel_,
     output logic alu_src_imm_, //operand b 是否選 imm
     output logic [3:0] alu_op_,
     output logic valid_inst_ // 是否有這指令
@@ -99,6 +100,8 @@ always_comb begin
                     valid_inst_ = 0;
                 end
             endcase
+
+            operand_a_sel_ = `OP_A_RS1;
         end
         `Opcode_R_M: begin
             // alu_src_imm_ 保持 0。
@@ -183,10 +186,26 @@ always_comb begin
             if (valid_inst_) begin
                 reg_write_ = 1'b1;
             end
+            operand_a_sel_ = `OP_A_RS1;
+        end
+        `Opcode_LUI: begin
+            reg_write_      = 1'b1;
+            operand_a_sel_  = `OP_A_ZERO;
+            alu_src_imm_    = 1'b1;
+            alu_op_         = `ALUOP_ADD;
+            valid_inst_     = 1;
+        end
+        `Opcode_AUIPC: begin
+            reg_write_      = 1'b1;
+            operand_a_sel_  = `OP_A_PC;
+            alu_src_imm_    = 1'b1;
+            alu_op_         = `ALUOP_ADD;
+            valid_inst_     = 1;
         end
         default: begin
             reg_write_ = 0;
             alu_src_imm_ = 0;
+            operand_a_sel_  = `OP_A_ZERO;
             alu_op_ = `ALUOP_NOP;
             valid_inst_ = 0;
         end

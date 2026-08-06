@@ -6,6 +6,8 @@ module tb_CPU_Top ;
     logic rst;
     logic saw_x4_write;
     logic saw_x15_write;
+    logic saw_x24_write;
+    logic saw_x25_write;
 
     CPU_Top u_CPU_Top (
         .clk(clk),
@@ -23,18 +25,43 @@ module tb_CPU_Top ;
         forever #5 clk = ~clk;
     end
 
+    // Step 13 directed instructions. Program ROM currently uses these addresses
+    // as NOP, so the testbench injects one instruction for each fetch cycle.
+    // 0x0000005C: lui   x24, 0x12345
+    // 0x00000060: auipc x25, 0x00001
+    initial begin
+        wait (rst === 1'b0);
+        wait (u_CPU_Top.pc === 32'h0000_005C);
+        force u_CPU_Top.inst_ = 32'h1234_5C37;
+        @(posedge clk);
+        #1;
+        release u_CPU_Top.inst_;
+
+        wait (u_CPU_Top.pc === 32'h0000_0060);
+        force u_CPU_Top.inst_ = 32'h0000_1C97;
+        @(posedge clk);
+        #1;
+        release u_CPU_Top.inst_;
+    end
+
     // x4 的預期結果是 0，僅檢查最終值無法區分「正確寫回 0」和「從未執行」。
     // 因此另外記錄是否真的發生過對 x4 的 write-back。
     always @(posedge clk) begin
         if (rst) begin
             saw_x4_write <= 1'b0;
             saw_x15_write <= 1'b0;
+            saw_x24_write <= 1'b0;
+            saw_x25_write <= 1'b0;
         end
         else begin
             if (u_CPU_Top.write_regf_en_r && u_CPU_Top.addr_rd_r == 5'd4)
                 saw_x4_write <= 1'b1;
             if (u_CPU_Top.write_regf_en_r && u_CPU_Top.addr_rd_r == 5'd15)
                 saw_x15_write <= 1'b1;
+            if (u_CPU_Top.write_regf_en_r && u_CPU_Top.addr_rd_r == 5'd24)
+                saw_x24_write <= 1'b1;
+            if (u_CPU_Top.write_regf_en_r && u_CPU_Top.addr_rd_r == 5'd25)
+                saw_x25_write <= 1'b1;
         end
     end
 
@@ -222,6 +249,30 @@ module tb_CPU_Top ;
             );
         end
 
+        // LUI 必須忽略 rs1 欄位，將 U-immediate 原樣寫回。
+        if (u_CPU_Top.u_Reg_File.regs[24] !== 32'h1234_5000) begin
+            $fatal(1,
+                "[FAIL] x24 (LUI): expected=0x%08h actual=0x%08h",
+                32'h1234_5000,
+                u_CPU_Top.u_Reg_File.regs[24]
+            );
+        end
+
+        if (saw_x24_write !== 1'b1)
+            $fatal(1, "[FAIL] x24 (LUI) never reached write-back");
+
+        // AUIPC 位於 PC=0x60，因此結果必須是 0x60 + 0x1000。
+        if (u_CPU_Top.u_Reg_File.regs[25] !== 32'h0000_1060) begin
+            $fatal(1,
+                "[FAIL] x25 (AUIPC): expected=0x%08h actual=0x%08h",
+                32'h0000_1060,
+                u_CPU_Top.u_Reg_File.regs[25]
+            );
+        end
+
+        if (saw_x25_write !== 1'b1)
+            $fatal(1, "[FAIL] x25 (AUIPC) never reached write-back");
+
         if (u_CPU_Top.u_Reg_File.regs[0] !== 32'h0000_0000) begin
             $fatal(1,
                 "[FAIL] x0 must remain zero: actual=0x%08h",
@@ -249,6 +300,8 @@ module tb_CPU_Top ;
         $display("[PASS] x18 = 0x%08h (SRA)", u_CPU_Top.u_Reg_File.regs[18]);
         $display("[PASS] x19 = 0x%08h (OR)", u_CPU_Top.u_Reg_File.regs[19]);
         $display("[PASS] x20 = 0x%08h (AND)", u_CPU_Top.u_Reg_File.regs[20]);
+        $display("[PASS] x24 = 0x%08h (LUI)", u_CPU_Top.u_Reg_File.regs[24]);
+        $display("[PASS] x25 = 0x%08h (AUIPC at PC 0x00000060)", u_CPU_Top.u_Reg_File.regs[25]);
         $display("[PASS] x0 remains zero");
         $display("[PASS] tb_CPU_Top completed.");
         $finish;

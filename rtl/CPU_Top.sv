@@ -44,6 +44,8 @@ logic alu_src_imm_; //operand b 是否選 imm
 logic [3:0] alu_op_;
 logic valid_inst_; // 是否有這指令
 
+logic [1:0] operand_a_sel_;
+
 // ID/EX signals
 logic [31:0] imm_r;
 logic [31:0] rs1_value_r;
@@ -54,14 +56,20 @@ logic [3:0] alu_op_r;
 logic alu_src_imm_r;
 logic valid_inst_r;
 
+logic [31:0] operand_a_choose;
 logic [31:0] operand_b_choose;
 
 logic [31:0] forwarded_rs1_value;
 logic [31:0] forwarded_rs2_value;
 
+logic [1:0] operand_a_sel_r;
+
 logic stall_; // 是否要暫停pc、ifid推進
 logic keepgoing;
 logic bubble;
+
+logic [31:0] ifid_pc_r;
+logic [31:0] idex_pc_r;
 
 // ------------------------------------------------------------
 // Simple PC next logic
@@ -83,6 +91,17 @@ assign keepgoing = ~stall_;
 assign bubble = flush_IDEX_ || stall_;
 
 assign stall_ = 1'b0; // temp
+
+always_comb begin
+    operand_a_choose = 32'b0;
+
+    case (operand_a_sel_r)
+        `OP_A_RS1:  operand_a_choose = rs1_value_r;
+        `OP_A_ZERO: operand_a_choose = 32'b0;
+        `OP_A_PC:   operand_a_choose = idex_pc_r;
+        default:    operand_a_choose = 32'b0;
+    endcase
+end
 
 // ------------------------------------------------------------
 // Controller
@@ -125,8 +144,10 @@ IFID u_IFID (
     .flush_IFID_  (flush_IFID_),
     .inst_        (inst_),
     .write_en_    (keepgoing),
+    .pc_(pc),
 
-    .inst_r       (inst_r)
+    .inst_r       (inst_r),
+    .pc_r(ifid_pc_r)
 );
 
 // ------------------------------------------------------------
@@ -165,6 +186,7 @@ Control_Unit u_Control_Unit (
 
     .reg_write_   (reg_write_),
     .alu_src_imm_ (alu_src_imm_),
+    .operand_a_sel_(operand_a_sel_),
     .alu_op_      (alu_op_),
     .valid_inst_  (valid_inst_)
 );
@@ -193,12 +215,17 @@ IDEX u_IDEX (
     .reg_write_r(reg_write_r),
     .alu_src_imm_r(alu_src_imm_r),
     .alu_op_r(alu_op_r),
-    .valid_inst_r(valid_inst_r)
+    .valid_inst_r(valid_inst_r),
     
+    .operand_a_sel_(operand_a_sel_),
+    .operand_a_sel_r(operand_a_sel_r),
+
+    .ifid_pc_(ifid_pc_r),
+    .idex_pc_r(idex_pc_r)
 );
 
 ALU u_ALU (
-    .operand_a_ (rs1_value_r),
+    .operand_a_ (operand_a_choose),
     .operand_b_ (operand_b_choose),
     .alu_op_    (alu_op_r),
 

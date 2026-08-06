@@ -18,13 +18,17 @@ module tb_IDEX;
 
     logic reg_write_;
     logic alu_src_imm_;
+    logic [1:0] operand_a_sel_;
     logic [3:0] alu_op_;
     logic valid_inst_;
+    logic [31:0] ifid_pc_;
 
     logic reg_write_r;
     logic alu_src_imm_r;
+    logic [1:0] operand_a_sel_r;
     logic [3:0] alu_op_r;
     logic valid_inst_r;
+    logic [31:0] idex_pc_r;
 
     IDEX u_IDEX (
         .clk          (clk),
@@ -41,13 +45,17 @@ module tb_IDEX;
 
         .reg_write_(reg_write_),
         .alu_src_imm_(alu_src_imm_),
+        .operand_a_sel_(operand_a_sel_),
         .alu_op_(alu_op_),
         .valid_inst_(valid_inst_),
+        .ifid_pc_(ifid_pc_),
 
         .reg_write_r(reg_write_r),
         .alu_src_imm_r(alu_src_imm_r),
+        .operand_a_sel_r(operand_a_sel_r),
         .alu_op_r(alu_op_r),
-        .valid_inst_r(valid_inst_r)
+        .valid_inst_r(valid_inst_r),
+        .idex_pc_r(idex_pc_r)
         
     );
 
@@ -63,8 +71,10 @@ module tb_IDEX;
         input logic [31:0] expected_rs2,
         input logic        expected_reg_write,
         input logic        expected_alu_src_imm,
+        input logic [1:0]  expected_operand_a_sel,
         input logic [3:0]  expected_alu_op,
         input logic        expected_valid_inst,
+        input logic [31:0] expected_pc,
         input string       test_name
     );
         begin
@@ -104,6 +114,12 @@ module tb_IDEX;
                     test_name, expected_alu_src_imm, alu_src_imm_r
                 );
 
+            if (operand_a_sel_r !== expected_operand_a_sel)
+                $fatal(1,
+                    "[FAIL] %s operand_a_sel: expected=%0d actual=%0d",
+                    test_name, expected_operand_a_sel, operand_a_sel_r
+                );
+
             if (alu_op_r !== expected_alu_op)
                 $fatal(1,
                     "[FAIL] %s alu_op: expected=%0d actual=%0d",
@@ -114,6 +130,12 @@ module tb_IDEX;
                 $fatal(1,
                     "[FAIL] %s valid_inst: expected=%b actual=%b",
                     test_name, expected_valid_inst, valid_inst_r
+                );
+
+            if (idex_pc_r !== expected_pc)
+                $fatal(1,
+                    "[FAIL] %s instruction PC: expected=%08h actual=%08h",
+                    test_name, expected_pc, idex_pc_r
                 );
 
             $display("[PASS] %s", test_name);
@@ -129,14 +151,16 @@ module tb_IDEX;
         rs2_value_  = 32'h2222_2222;
         reg_write_  = 1'b1;
         alu_src_imm_ = 1'b1;
+        operand_a_sel_ = `OP_A_PC;
         alu_op_      = `ALUOP_ADD;
         valid_inst_  = 1'b1;
+        ifid_pc_     = 32'hDEAD_BEEF;
 
         // Reset 在上升緣將所有輸出清為 0。
         @(posedge clk);
         #1;
         check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
-                      1'b0, 1'b0, `ALUOP_NOP, 1'b0,
+                      1'b0, 1'b0, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       "reset clears all outputs");
 
         // 解除 reset，並在下一個上升緣同時保存四個欄位。
@@ -148,14 +172,16 @@ module tb_IDEX;
         rs2_value_ = 32'hCAFE_BABE;
         reg_write_   = 1'b1;
         alu_src_imm_ = 1'b1;
+        operand_a_sel_ = `OP_A_PC;
         alu_op_      = `ALUOP_ADD;
         valid_inst_  = 1'b1;
+        ifid_pc_     = 32'h0000_0100;
 
         @(posedge clk);
         #1;
         check_outputs(5'd7, 32'hFFFF_FFFB,
                       32'h1234_5678, 32'hCAFE_BABE,
-                      1'b1, 1'b1, `ALUOP_ADD, 1'b1,
+                      1'b1, 1'b1, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       "rising edge captures all inputs");
 
         // 在上升緣之間改變輸入，輸出仍應保持舊值。
@@ -166,12 +192,14 @@ module tb_IDEX;
         rs2_value_ = 32'h5555_5555;
         reg_write_   = 1'b0;
         alu_src_imm_ = 1'b0;
+        operand_a_sel_ = `OP_A_ZERO;
         alu_op_      = `ALUOP_SUB;
         valid_inst_  = 1'b0;
+        ifid_pc_     = 32'h0000_0104;
         #1;
         check_outputs(5'd7, 32'hFFFF_FFFB,
                       32'h1234_5678, 32'hCAFE_BABE,
-                      1'b1, 1'b1, `ALUOP_ADD, 1'b1,
+                      1'b1, 1'b1, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       "outputs hold between rising edges");
 
         // 下一個上升緣才一起更新。
@@ -179,7 +207,7 @@ module tb_IDEX;
         #1;
         check_outputs(5'd12, 32'h0000_07FF,
                       32'hAAAA_AAAA, 32'h5555_5555,
-                      1'b0, 1'b0, `ALUOP_SUB, 1'b0,
+                      1'b0, 1'b0, `OP_A_ZERO, `ALUOP_SUB, 1'b0, 32'h0000_0104,
                       "next rising edge updates all outputs");
 
         // Flush 在上升緣將所有輸出清為 0。
@@ -191,13 +219,15 @@ module tb_IDEX;
         rs2_value_  = 32'h1020_3040;
         reg_write_   = 1'b1;
         alu_src_imm_ = 1'b1;
+        operand_a_sel_ = `OP_A_PC;
         alu_op_      = `ALUOP_AND;
         valid_inst_  = 1'b1;
+        ifid_pc_     = 32'h0000_0200;
 
         @(posedge clk);
         #1;
         check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
-                      1'b0, 1'b0, `ALUOP_NOP, 1'b0,
+                      1'b0, 1'b0, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       "flush clears all outputs");
 
         // 解除 flush 後恢復正常保存。
@@ -209,14 +239,16 @@ module tb_IDEX;
         rs2_value_  = 32'h1357_2468;
         reg_write_   = 1'b1;
         alu_src_imm_ = 1'b1;
+        operand_a_sel_ = `OP_A_PC;
         alu_op_      = `ALUOP_ADD;
         valid_inst_  = 1'b1;
+        ifid_pc_     = 32'h0000_0300;
 
         @(posedge clk);
         #1;
         check_outputs(5'd9, 32'h0000_002A,
                       32'h0BAD_F00D, 32'h1357_2468,
-                      1'b1, 1'b1, `ALUOP_ADD, 1'b1,
+                      1'b1, 1'b1, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0300,
                       "ID/EX resumes after flush");
 
         // 第二次 reset 仍能清除所有輸出。
@@ -228,13 +260,15 @@ module tb_IDEX;
         rs2_value_  = 32'hCAFE_BABE;
         reg_write_   = 1'b1;
         alu_src_imm_ = 1'b1;
+        operand_a_sel_ = `OP_A_ZERO;
         alu_op_      = `ALUOP_XOR;
         valid_inst_  = 1'b1;
+        ifid_pc_     = 32'hFFFF_FFFC;
 
         @(posedge clk);
         #1;
         check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
-                      1'b0, 1'b0, `ALUOP_NOP, 1'b0,
+                      1'b0, 1'b0, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       "second reset clears all outputs");
 
         $display("[PASS] tb_IDEX completed.");

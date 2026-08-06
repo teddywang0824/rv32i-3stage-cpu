@@ -68,4 +68,10 @@
 `define ALUOP_SRA   4'd9
 `define ALUOP_NOP   4'd15
 
+// 會使用的 operand_a 可能對象
+
+`define OP_A_RS1    2'd0
+`define OP_A_ZERO   2'd1
+`define OP_A_PC     2'd3
+
 `endif

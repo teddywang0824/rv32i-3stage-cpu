@@ -8,6 +8,7 @@ module tb_Control_Unit;
     logic [6:0] funct7_;
 
     logic       reg_write_;
+    logic [1:0] operand_a_sel_;
     logic       alu_src_imm_;
     logic [3:0] alu_op_;
     logic       valid_inst_;
@@ -17,6 +18,7 @@ module tb_Control_Unit;
         .funct3_      (funct3_),
         .funct7_      (funct7_),
         .reg_write_   (reg_write_),
+        .operand_a_sel_ (operand_a_sel_),
         .alu_src_imm_ (alu_src_imm_),
         .alu_op_      (alu_op_),
         .valid_inst_  (valid_inst_)
@@ -53,6 +55,27 @@ module tb_Control_Unit;
             if (valid_inst_ !== expected_valid)
                 $fatal(1, "[FAIL] %s valid_inst: expected=%b actual=%b",
                        test_name, expected_valid, valid_inst_);
+
+            $display("[PASS] %s", test_name);
+        end
+    endtask
+
+    task automatic check_operand_a_sel(
+        input logic [6:0] test_opcode,
+        input logic [2:0] test_funct3,
+        input logic [6:0] test_funct7,
+        input logic [1:0] expected_operand_a_sel,
+        input string      test_name
+    );
+        begin
+            opcode_ = test_opcode;
+            funct3_ = test_funct3;
+            funct7_ = test_funct7;
+            #1;
+
+            if (operand_a_sel_ !== expected_operand_a_sel)
+                $fatal(1, "[FAIL] %s operand_a_sel: expected=%0d actual=%0d",
+                       test_name, expected_operand_a_sel, operand_a_sel_);
 
             $display("[PASS] %s", test_name);
         end
@@ -221,11 +244,56 @@ module tb_Control_Unit;
             "unknown R-type funct3 uses safe defaults"
         );
 
+        // 現有 I/R-type 的 operand A 都應來自 rs1。
+        check_operand_a_sel(
+            `Opcode_I, `F_ADDI, 7'b101_0101,
+            `OP_A_RS1,
+            "I-type selects rs1 as operand A"
+        );
+
+        check_operand_a_sel(
+            `Opcode_R_M, `F_ADD_SUB, `F7_ADD,
+            `OP_A_RS1,
+            "R-type selects rs1 as operand A"
+        );
+
+        // LUI 使用 0 + U-immediate。
+        check_control(
+            `Opcode_LUI, 3'b101, 7'b101_0101,
+            1'b1, 1'b1, `ALUOP_ADD, 1'b1,
+            "LUI produces valid immediate ADD controls"
+        );
+
+        check_operand_a_sel(
+            `Opcode_LUI, 3'b101, 7'b101_0101,
+            `OP_A_ZERO,
+            "LUI selects zero as operand A"
+        );
+
+        // AUIPC 使用該指令的 PC + U-immediate。
+        check_control(
+            `Opcode_AUIPC, 3'b010, 7'b010_1010,
+            1'b1, 1'b1, `ALUOP_ADD, 1'b1,
+            "AUIPC produces valid immediate ADD controls"
+        );
+
+        check_operand_a_sel(
+            `Opcode_AUIPC, 3'b010, 7'b010_1010,
+            `OP_A_PC,
+            "AUIPC selects PC as operand A"
+        );
+
         // 未知 opcode 必須保持安全輸出。
         check_control(
             7'b111_1111, 3'b111, 7'b111_1111,
             1'b0, 1'b0, `ALUOP_NOP, 1'b0,
             "unknown opcode uses safe defaults"
+        );
+
+        check_operand_a_sel(
+            7'b111_1111, 3'b111, 7'b111_1111,
+            `OP_A_ZERO,
+            "unknown opcode selects safe operand A default"
         );
 
         // 從合法 ADDI 切換到非法 SLLI，確認沒有殘留控制訊號或 latch。
