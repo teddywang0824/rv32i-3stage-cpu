@@ -7,8 +7,15 @@
 
 // Opcode
 // 定義指令的操作碼，判斷"這條指令是哪一大類"
-`define Opcode_I 7'b0010011
-`define Opcode_R_M 7'b0110011
+`define Opcode_I        7'b0010011
+`define Opcode_R_M      7'b0110011
+`define Opcode_LOAD     7'b0000011 // Itype
+`define Opcode_JALR     7'b1100111 // Itype
+`define Opcode_STORE    7'b0100011 // Stype
+`define Opcode_BRANCH   7'b1100011 // Btype
+`define Opcode_LUI      7'b0110111 // Utype
+`define Opcode_AUIPC    7'b0010111 // Utype
+`define Opcode_JAL      7'b1101111 // Jtype
 
 // funct3 for I/R-type
 // 3-bit 功能碼，用來區分在同個 opcode 下，進一步分辨是哪一條指令

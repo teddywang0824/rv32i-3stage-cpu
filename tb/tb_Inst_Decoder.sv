@@ -123,6 +123,25 @@ task automatic check_r_type(
     end
 endtask
 
+task automatic check_imm(
+    input logic [31:0] instruction,
+    input logic [31:0] expected_imm,
+    input string       test_name
+);
+    begin
+        inst_r = instruction;
+        #1;
+
+        if (imm_ !== expected_imm)
+            $fatal(1,
+                "[FAIL] %s immediate: expected=%08h actual=%08h",
+                test_name, expected_imm, imm_
+            );
+
+        $display("[PASS] %s immediate", test_name);
+    end
+endtask
+
 initial begin
     // NOP
     inst_r = 32'h0000_0013;
@@ -167,6 +186,38 @@ initial begin
         7'b0100000,
         "SUB x3, x1, x2"
     );
+
+    // I-type: ALU immediate, load and JALR all use inst[31:20].
+    check_imm(32'h07B0_0093, 32'h0000_007B, "I-type ADDI +123");
+    check_imm(32'hFFB0_0093, 32'hFFFF_FFFB, "I-type ADDI -5");
+    check_imm(32'h00C2_2183, 32'h0000_000C, "I-type LW +12");
+    check_imm(32'hFFC1_00E7, 32'hFFFF_FFFC, "I-type JALR -4");
+
+    // S-type store offsets.
+    check_imm(32'h0020_A823, 32'h0000_0010, "S-type SW +16");
+    check_imm(32'hFE20_A823, 32'hFFFF_FFF0, "S-type SW -16");
+
+    // B-type branch offsets always have bit 0 cleared.
+    check_imm(32'h0020_8863, 32'h0000_0010, "B-type BEQ +16");
+    check_imm(32'hFE20_88E3, 32'hFFFF_FFF0, "B-type BEQ -16");
+
+    // U-type keeps inst[31:12] and appends twelve zero bits.
+    check_imm(32'h1234_52B7, 32'h1234_5000, "U-type LUI 0x12345");
+    check_imm(32'hABCD_E317, 32'hABCD_E000, "U-type AUIPC 0xABCDE");
+    if (opcode_ !== 7'b0010111)
+        $fatal(1,
+            "[FAIL] U-type AUIPC opcode: expected=%07b actual=%07b",
+            7'b0010111, opcode_
+        );
+    $display("[PASS] U-type AUIPC opcode");
+
+    // J-type jump offsets always have bit 0 cleared.
+    check_imm(32'h0100_00EF, 32'h0000_0010, "J-type JAL +16");
+    check_imm(32'hFF1F_F0EF, 32'hFFFF_FFF0, "J-type JAL -16");
+
+    // Instructions without an immediate must decode to zero.
+    check_imm(32'h4020_81B3, 32'h0000_0000, "R-type immediate is zero");
+    check_imm(32'hFFF0_0000, 32'h0000_0000, "Unknown opcode immediate is zero");
 
     $display("[PASS] tb_Inst_Decoder completed.");
     $finish;
