@@ -74,6 +74,12 @@
 `define OP_A_ZERO   2'd1
 `define OP_A_PC     2'd3
 
+// 會使用的 operand_b 可能對象
+
+`define OP_B_RS2    2'd0
+`define OP_B_IMM    2'd1
+`define OP_B_FOUR   2'd3
+
 
 // Branch 解碼
 // 31       30       25 24    20 19    15 14  12 11      8 7       6      0
@@ -90,5 +96,9 @@
 `define F3_BGE      3'b101 // rs1 >= rs2 (signed)
 `define F3_BLTU     3'b110 // rs1 <  rs2 (unsigned)
 `define F3_BGEU     3'b111 // rs1 >= rs2 (unsigned)
+
+// Jump 指令編碼(用於funct3)
+`define F3_JALR   3'b000
+`define F3_JAL    3'b001    
 
 `endif

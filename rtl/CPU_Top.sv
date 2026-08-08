@@ -40,7 +40,7 @@ logic [31:0] rs2_value_;
 
 // Control Unit
 logic reg_write_;
-logic alu_src_imm_; //operand b 是否選 imm
+logic [1:0] operand_b_sel_; //operand b 是否選 imm
 logic [3:0] alu_op_;
 logic valid_inst_; // 是否有這指令
 
@@ -48,6 +48,7 @@ logic [1:0] operand_a_sel_;
 
 logic branch_en_;
 logic [2:0] branch_op_;
+logic jump_op_;
 
 // ID/EX signals
 logic [31:0] imm_r;
@@ -56,7 +57,7 @@ logic [31:0] rs2_value_r;
 
 logic reg_write_r;
 logic [3:0] alu_op_r;
-logic alu_src_imm_r;
+logic [1:0] operand_b_sel_r;
 logic valid_inst_r;
 
 logic [31:0] operand_a_choose;
@@ -77,6 +78,7 @@ logic [31:0] idex_pc_r;
 
 logic branch_en_r;
 logic [2:0] branch_op_r;
+logic jump_op_r;
 
 // Branch Unit
 logic branch_taken;
@@ -96,7 +98,18 @@ assign pc_next_ = branch_taken ? branch_target : pc + 32'd4;
 // assign rd_value_       = 32'd0;
 assign write_regf_en_r = reg_write_r && valid_inst_r;
 
-assign operand_b_choose = (alu_src_imm_r) ? imm_r : rs2_value_r;
+// assign operand_b_choose = (operand_b_sel_r) ? imm_r : rs2_value_r;
+always_comb begin
+    operand_b_choose = 32'b0;
+
+    case (operand_b_sel_r)
+        `OP_B_RS2:  operand_b_choose = rs2_value_r;
+        `OP_B_IMM: operand_b_choose = imm_r;
+        `OP_B_FOUR:   operand_b_choose = 32'd4;
+        default:    operand_b_choose = 32'b0;
+    endcase
+end
+
 
 assign keepgoing = ~stall_;
 assign bubble_IDEX = flush_IDEX_ || stall_ || branch_taken;
@@ -197,12 +210,13 @@ Control_Unit u_Control_Unit (
     .funct7_      (funct7_),
 
     .reg_write_   (reg_write_),
-    .alu_src_imm_ (alu_src_imm_),
+    .operand_b_sel_ (operand_b_sel_),
     .operand_a_sel_(operand_a_sel_),
     .alu_op_      (alu_op_),
     .valid_inst_  (valid_inst_),
     .branch_en_(branch_en_),
-    .branch_op_(branch_op_)
+    .branch_op_(branch_op_),
+    .jump_op_(jump_op_)
 );
 
 // ------------------------------------------------------------
@@ -222,12 +236,12 @@ IDEX u_IDEX (
     .rs2_value_r  (rs2_value_r),
 
     .reg_write_(reg_write_),
-    .alu_src_imm_(alu_src_imm_),
+    .operand_b_sel_(operand_b_sel_),
     .alu_op_(alu_op_),
     .valid_inst_(valid_inst_),
 
     .reg_write_r(reg_write_r),
-    .alu_src_imm_r(alu_src_imm_r),
+    .operand_b_sel_r(operand_b_sel_r),
     .alu_op_r(alu_op_r),
     .valid_inst_r(valid_inst_r),
     
@@ -241,7 +255,10 @@ IDEX u_IDEX (
     .branch_en_r(branch_en_r),
 
     .branch_op_(branch_op_),
-    .branch_op_r(branch_op_r)
+    .branch_op_r(branch_op_r),
+
+    .jump_op_(jump_op_),
+    .jump_op_r(jump_op_r)
 );
 
 ALU u_ALU (
@@ -271,6 +288,7 @@ Branch_Unit u_Branch_Unit (
     .imm_(imm_r),
     .branch_en_(branch_en_r),
     .branch_op_(branch_op_r),
+    .jump_op_(jump_op_r),
     .pc_(idex_pc_r),
 
     .branch_taken(branch_taken),

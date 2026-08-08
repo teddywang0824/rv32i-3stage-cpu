@@ -141,6 +141,38 @@ run_branch_test() {
     tb/tb_CPU_Branch.sv
 }
 
+run_jal_test() {
+  run_test tb_CPU_JAL \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Branch_Unit.sv \
+    tb/tb_CPU_JAL.sv
+}
+
+run_jalr_test() {
+  run_test tb_CPU_JALR \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Branch_Unit.sv \
+    tb/tb_CPU_JALR.sv
+}
+
 test_name="${1:-all}"
 
 case "${test_name}" in
@@ -185,6 +217,16 @@ case "${test_name}" in
     echo "Waveform: ${build_dir}/cpu_branch.vcd"
     ;;
 
+  jal)
+    run_jal_test
+    echo "Waveform: ${build_dir}/cpu_jal.vcd"
+    ;;
+
+  jalr)
+    run_jalr_test
+    echo "Waveform: ${build_dir}/cpu_jalr.vcd"
+    ;;
+
   hazard)
     run_hazard_test
     echo "Waveform: ${build_dir}/hazard_observe.vcd"
@@ -208,12 +250,14 @@ case "${test_name}" in
     run_hazard_test
     run_cpu_test
     run_branch_test
+    run_jal_test
+    run_jalr_test
     echo "Waveform: ${build_dir}/cpu_top.vcd"
     ;;
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|alu|control|forwarding|branchunit|hazard|cpu|branch|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|alu|control|forwarding|branchunit|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

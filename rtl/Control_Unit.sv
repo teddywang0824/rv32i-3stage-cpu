@@ -7,71 +7,73 @@ module Control_Unit (
 
     output logic reg_write_,
     output logic [1:0] operand_a_sel_,
-    output logic alu_src_imm_, //operand b 是否選 imm
+    output logic [1:0] operand_b_sel_, //operand b 是否選 imm
     output logic [3:0] alu_op_,
     output logic valid_inst_, // 是否有這指令
 
     output logic branch_en_,
-    output logic [2:0] branch_op_
+    output logic [2:0] branch_op_,
+    output logic jump_op_
 );
 
 always_comb begin
     reg_write_ = 0;
-    alu_src_imm_ = 0;
+    operand_b_sel_ = 0;
     alu_op_ = `ALUOP_NOP;
     valid_inst_ = 0;
 
     branch_en_ = 1'b0;
     branch_op_ = `F3_BRANCH_NONE;
+    jump_op_ = 0;
 
     case (opcode_)
         `Opcode_I :  begin
             case (funct3_)
                 `F_ADDI : begin
                     reg_write_ = 1;
-                    alu_src_imm_ = 1;
+                    operand_b_sel_ = 1;
                     alu_op_ = `ALUOP_ADD;
                     valid_inst_ = 1'b1;
                 end 
                 `F_SLTI : begin
                     reg_write_ = 1;
-                    alu_src_imm_ = 1;
+                    operand_b_sel_ = 1;
                     alu_op_ = `ALUOP_LT;
                     valid_inst_ = 1'b1;
                 end
                 `F_SLTIU : begin
                     reg_write_ = 1;
-                    alu_src_imm_ = 1;
+                    operand_b_sel_ = 1;
                     alu_op_ = `ALUOP_LTU;
                     valid_inst_ = 1'b1;
                 end
                 `F_ANDI : begin
                     reg_write_ = 1;
-                    alu_src_imm_ = 1;
+                    operand_b_sel_ = 1;
                     alu_op_ = `ALUOP_AND;
                     valid_inst_ = 1'b1;
                 end
                 `F_XORI : begin
                     reg_write_ = 1;
-                    alu_src_imm_ = 1;
+                    operand_b_sel_ = 1;
                     alu_op_ = `ALUOP_XOR;
                     valid_inst_ = 1'b1;
                 end
                 `F_ORI : begin
                     reg_write_ = 1;
-                    alu_src_imm_ = 1;
+                    operand_b_sel_ = 1;
                     alu_op_ = `ALUOP_OR;
                     valid_inst_ = 1'b1;
                 end
                 `F_SLLI : begin
                     if (funct7_ == `F7_SLLI) begin
                         reg_write_ = 1;
-                        alu_src_imm_ = 1;
+                        operand_b_sel_ = 1;
                         alu_op_ = `ALUOP_SLL;
                         valid_inst_ = 1'b1;
                     end else begin
                         reg_write_ = 0;
-                        alu_src_imm_ = 0;
+                        operand_b_sel_ = 0;
                         alu_op_ = `ALUOP_NOP;
                         valid_inst_ = 0;
                     end
@@ -80,19 +82,19 @@ always_comb begin
                     case (funct7_)
                         `F7_SRLI : begin
                             reg_write_ = 1;
-                            alu_src_imm_ = 1;
+                            operand_b_sel_ = 1;
                             alu_op_ = `ALUOP_SRL;
                             valid_inst_ = 1'b1;
                         end
                         `F7_SRAI : begin
                             reg_write_ = 1;
-                            alu_src_imm_ = 1;
+                            operand_b_sel_ = 1;
                             alu_op_ = `ALUOP_SRA;
                             valid_inst_ = 1'b1;
                         end
                         default: begin
                             reg_write_ = 0;
-                            alu_src_imm_ = 0;
+                            operand_b_sel_ = 0;
                             alu_op_ = `ALUOP_NOP;
                             valid_inst_ = 0;
                         end
@@ -101,7 +103,7 @@ always_comb begin
                 end
                 default: begin
                     reg_write_ = 0;
-                    alu_src_imm_ = 0;
+                    operand_b_sel_ = 0;
                     alu_op_ = `ALUOP_NOP;
                     valid_inst_ = 0;
                 end
@@ -110,7 +112,7 @@ always_comb begin
             operand_a_sel_ = `OP_A_RS1;
         end
         `Opcode_R_M: begin
-            // alu_src_imm_ 保持 0。
+            // operand_b_sel_ 保持 0。
             case (funct3_)
                 `F_ADD_SUB: begin
                     case (funct7_)
@@ -197,22 +199,23 @@ always_comb begin
         `Opcode_LUI: begin
             reg_write_      = 1'b1;
             operand_a_sel_  = `OP_A_ZERO;
-            alu_src_imm_    = 1'b1;
+            operand_b_sel_    = 1;
             alu_op_         = `ALUOP_ADD;
             valid_inst_     = 1;
         end
         `Opcode_AUIPC: begin
             reg_write_      = 1'b1;
             operand_a_sel_  = `OP_A_PC;
-            alu_src_imm_    = 1'b1;
+            operand_b_sel_    = 1;
             alu_op_         = `ALUOP_ADD;
             valid_inst_     = 1;
         end
         `Opcode_BRANCH: begin
             reg_write_      = 1'b0;
             operand_a_sel_  = `OP_A_ZERO;
-            alu_src_imm_    = 1'b0;
+            operand_b_sel_    = 0;
             alu_op_         = `ALUOP_NOP;
+            jump_op_ = 0;
 
             if (funct3_ != 3'b010 && funct3_ != 3'b011) begin
                 branch_en_ = 1'b1;
@@ -224,9 +227,40 @@ always_comb begin
                 branch_op_ = `F3_BRANCH_NONE;
             end
         end
+        `Opcode_JAL : begin
+            reg_write_      = 1'b1;
+            operand_a_sel_  = `OP_A_PC;
+            operand_b_sel_    = `OP_B_FOUR;
+            alu_op_         = `ALUOP_ADD;
+            valid_inst_ = 1;
+            branch_en_ = 1;
+            branch_op_ = `F3_JAL;
+            jump_op_ = 1;
+        end
+        `Opcode_JALR : begin
+            if (funct3_ == `F3_JALR) begin
+                operand_a_sel_  = `OP_A_PC;
+                operand_b_sel_    = `OP_B_FOUR;
+                alu_op_         = `ALUOP_ADD;   
+                reg_write_      = 1'b1;
+                valid_inst_ = 1;
+                branch_en_ = 1;
+                branch_op_ = `F3_JALR;
+                jump_op_ = 1;
+            end else begin
+                operand_a_sel_  = `OP_A_ZERO;
+                operand_b_sel_    = `OP_B_RS2;
+                alu_op_         = `ALUOP_NOP; 
+                reg_write_      = 1'b0;
+                valid_inst_ = 0;
+                branch_en_ = 0;
+                branch_op_ = `F3_BRANCH_NONE ;
+                jump_op_ = 0;
+            end
+        end
         default: begin
             reg_write_ = 0;
-            alu_src_imm_ = 0;
+            operand_b_sel_ = 0;
             operand_a_sel_  = `OP_A_ZERO;
             alu_op_ = `ALUOP_NOP;
             valid_inst_ = 0;

@@ -5,15 +5,18 @@ module Branch_Unit (
     input logic [31:0] imm_,
     input logic branch_en_,
     input logic [2:0] branch_op_,
+    input logic jump_op_,
     input logic [31:0] pc_,
     
     output logic branch_taken,
     output logic [31:0] branch_target
 );
     logic compare_result;
+    logic jtypeTrue;
 
-    assign branch_target = pc_ + imm_;
-    assign branch_taken = compare_result && branch_en_;
+    assign branch_target = (jump_op_ && branch_op_ == `F3_JALR) ? (rs1_value_ + imm_) & 32'hFFFF_FFFE : pc_ + imm_;
+    assign jtypeTrue = (jump_op_ & ((branch_op_ == `F3_JAL || branch_op_ == `F3_JALR)));
+    assign branch_taken = (compare_result | jtypeTrue) && branch_en_;
 
     always_comb begin
         case (branch_op_)

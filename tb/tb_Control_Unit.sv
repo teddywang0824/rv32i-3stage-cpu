@@ -9,11 +9,12 @@ module tb_Control_Unit;
 
     logic       reg_write_;
     logic [1:0] operand_a_sel_;
-    logic       alu_src_imm_;
+    logic [1:0] operand_b_sel_;
     logic [3:0] alu_op_;
     logic       valid_inst_;
     logic       branch_en_;
     logic [2:0] branch_op_;
+    logic       jump_op_;
 
     Control_Unit u_Control_Unit (
         .opcode_      (opcode_),
@@ -21,11 +22,12 @@ module tb_Control_Unit;
         .funct7_      (funct7_),
         .reg_write_   (reg_write_),
         .operand_a_sel_ (operand_a_sel_),
-        .alu_src_imm_ (alu_src_imm_),
+        .operand_b_sel_ (operand_b_sel_),
         .alu_op_      (alu_op_),
         .valid_inst_  (valid_inst_),
         .branch_en_   (branch_en_),
-        .branch_op_   (branch_op_)
+        .branch_op_   (branch_op_),
+        .jump_op_     (jump_op_)
     );
 
     task automatic check_control(
@@ -33,7 +35,7 @@ module tb_Control_Unit;
         input logic [2:0] test_funct3,
         input logic [6:0] test_funct7,
         input logic       expected_reg_write,
-        input logic       expected_alu_src_imm,
+        input logic [1:0] expected_operand_b_sel,
         input logic [3:0] expected_alu_op,
         input logic       expected_valid,
         input string      test_name
@@ -48,9 +50,9 @@ module tb_Control_Unit;
                 $fatal(1, "[FAIL] %s reg_write: expected=%b actual=%b",
                        test_name, expected_reg_write, reg_write_);
 
-            if (alu_src_imm_ !== expected_alu_src_imm)
-                $fatal(1, "[FAIL] %s alu_src_imm: expected=%b actual=%b",
-                       test_name, expected_alu_src_imm, alu_src_imm_);
+            if (operand_b_sel_ !== expected_operand_b_sel)
+                $fatal(1, "[FAIL] %s operand_b_sel: expected=%0d actual=%0d",
+                       test_name, expected_operand_b_sel, operand_b_sel_);
 
             if (alu_op_ !== expected_alu_op)
                 $fatal(1, "[FAIL] %s alu_op: expected=%0d actual=%0d",
@@ -68,7 +70,7 @@ module tb_Control_Unit;
         input logic [6:0] test_opcode,
         input logic [2:0] test_funct3,
         input logic       expected_reg_write,
-        input logic       expected_alu_src_imm,
+        input logic [1:0] expected_operand_b_sel,
         input logic [3:0] expected_alu_op,
         input logic       expected_valid,
         input logic       expected_branch_en,
@@ -85,9 +87,9 @@ module tb_Control_Unit;
                 $fatal(1, "[FAIL] %s reg_write: expected=%b actual=%b",
                        test_name, expected_reg_write, reg_write_);
 
-            if (alu_src_imm_ !== expected_alu_src_imm)
-                $fatal(1, "[FAIL] %s alu_src_imm: expected=%b actual=%b",
-                       test_name, expected_alu_src_imm, alu_src_imm_);
+            if (operand_b_sel_ !== expected_operand_b_sel)
+                $fatal(1, "[FAIL] %s operand_b_sel: expected=%0d actual=%0d",
+                       test_name, expected_operand_b_sel, operand_b_sel_);
 
             if (alu_op_ !== expected_alu_op)
                 $fatal(1, "[FAIL] %s alu_op: expected=%0d actual=%0d",
@@ -104,6 +106,58 @@ module tb_Control_Unit;
             if (branch_op_ !== expected_branch_op)
                 $fatal(1, "[FAIL] %s branch_op: expected=%03b actual=%03b",
                        test_name, expected_branch_op, branch_op_);
+
+            if (jump_op_ !== 1'b0)
+                $fatal(1, "[FAIL] %s jump_op must remain zero for non-jump instruction",
+                       test_name);
+
+            $display("[PASS] %s", test_name);
+        end
+    endtask
+
+    task automatic check_jump_control(
+        input logic [6:0] test_opcode,
+        input logic [2:0] test_funct3,
+        input logic [1:0] expected_operand_a_sel,
+        input logic [1:0] expected_operand_b_sel,
+        input logic [3:0] expected_alu_op,
+        input logic       expected_reg_write,
+        input logic       expected_valid,
+        input logic       expected_branch_en,
+        input logic [2:0] expected_branch_op,
+        input logic       expected_jump_op,
+        input string      test_name
+    );
+        begin
+            opcode_ = test_opcode;
+            funct3_ = test_funct3;
+            funct7_ = 7'b101_0101;
+            #1;
+
+            if (operand_a_sel_ !== expected_operand_a_sel)
+                $fatal(1, "[FAIL] %s operand_a_sel: expected=%0d actual=%0d",
+                       test_name, expected_operand_a_sel, operand_a_sel_);
+            if (operand_b_sel_ !== expected_operand_b_sel)
+                $fatal(1, "[FAIL] %s operand_b_sel: expected=%0d actual=%0d",
+                       test_name, expected_operand_b_sel, operand_b_sel_);
+            if (alu_op_ !== expected_alu_op)
+                $fatal(1, "[FAIL] %s alu_op: expected=%0d actual=%0d",
+                       test_name, expected_alu_op, alu_op_);
+            if (reg_write_ !== expected_reg_write)
+                $fatal(1, "[FAIL] %s reg_write: expected=%b actual=%b",
+                       test_name, expected_reg_write, reg_write_);
+            if (valid_inst_ !== expected_valid)
+                $fatal(1, "[FAIL] %s valid_inst: expected=%b actual=%b",
+                       test_name, expected_valid, valid_inst_);
+            if (branch_en_ !== expected_branch_en)
+                $fatal(1, "[FAIL] %s branch_en: expected=%b actual=%b",
+                       test_name, expected_branch_en, branch_en_);
+            if (branch_op_ !== expected_branch_op)
+                $fatal(1, "[FAIL] %s branch_op: expected=%03b actual=%03b",
+                       test_name, expected_branch_op, branch_op_);
+            if (jump_op_ !== expected_jump_op)
+                $fatal(1, "[FAIL] %s jump_op: expected=%b actual=%b",
+                       test_name, expected_jump_op, jump_op_);
 
             $display("[PASS] %s", test_name);
         end
@@ -330,6 +384,28 @@ module tb_Control_Unit;
             `Opcode_AUIPC, 3'b010, 7'b010_1010,
             `OP_A_PC,
             "AUIPC selects PC as operand A"
+        );
+
+        // JAL 的 target 由控制流單元計算；ALU 同時產生 instruction PC + 4 寫回 rd。
+        check_jump_control(
+            `Opcode_JAL, 3'b101,
+            `OP_A_PC, `OP_B_FOUR, `ALUOP_ADD,
+            1'b1, 1'b1, 1'b1, `F3_JAL, 1'b1,
+            "JAL produces redirect and PC+4 write-back controls"
+        );
+
+        // JALR 只有 funct3=000 合法；ALU 產生 PC+4，跳轉單元另算 rs1+imm。
+        check_jump_control(
+            `Opcode_JALR, 3'b000,
+            `OP_A_PC, `OP_B_FOUR, `ALUOP_ADD,
+            1'b1, 1'b1, 1'b1, `F3_JALR, 1'b1,
+            "legal JALR produces redirect and PC+4 write-back controls"
+        );
+        check_jump_control(
+            `Opcode_JALR, 3'b001,
+            `OP_A_ZERO, `OP_B_RS2, `ALUOP_NOP,
+            1'b0, 1'b0, 1'b0, `F3_BRANCH_NONE, 1'b0,
+            "JALR with reserved funct3 uses safe defaults"
         );
 
         // 六種合法 branch 必須保留 funct3 作為 branch operation，且不得寫回。
