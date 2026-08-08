@@ -12,6 +12,8 @@ module tb_Control_Unit;
     logic       alu_src_imm_;
     logic [3:0] alu_op_;
     logic       valid_inst_;
+    logic       branch_en_;
+    logic [2:0] branch_op_;
 
     Control_Unit u_Control_Unit (
         .opcode_      (opcode_),
@@ -21,7 +23,9 @@ module tb_Control_Unit;
         .operand_a_sel_ (operand_a_sel_),
         .alu_src_imm_ (alu_src_imm_),
         .alu_op_      (alu_op_),
-        .valid_inst_  (valid_inst_)
+        .valid_inst_  (valid_inst_),
+        .branch_en_   (branch_en_),
+        .branch_op_   (branch_op_)
     );
 
     task automatic check_control(
@@ -55,6 +59,51 @@ module tb_Control_Unit;
             if (valid_inst_ !== expected_valid)
                 $fatal(1, "[FAIL] %s valid_inst: expected=%b actual=%b",
                        test_name, expected_valid, valid_inst_);
+
+            $display("[PASS] %s", test_name);
+        end
+    endtask
+
+    task automatic check_branch_control(
+        input logic [6:0] test_opcode,
+        input logic [2:0] test_funct3,
+        input logic       expected_reg_write,
+        input logic       expected_alu_src_imm,
+        input logic [3:0] expected_alu_op,
+        input logic       expected_valid,
+        input logic       expected_branch_en,
+        input logic [2:0] expected_branch_op,
+        input string      test_name
+    );
+        begin
+            opcode_ = test_opcode;
+            funct3_ = test_funct3;
+            funct7_ = 7'b0;
+            #1;
+
+            if (reg_write_ !== expected_reg_write)
+                $fatal(1, "[FAIL] %s reg_write: expected=%b actual=%b",
+                       test_name, expected_reg_write, reg_write_);
+
+            if (alu_src_imm_ !== expected_alu_src_imm)
+                $fatal(1, "[FAIL] %s alu_src_imm: expected=%b actual=%b",
+                       test_name, expected_alu_src_imm, alu_src_imm_);
+
+            if (alu_op_ !== expected_alu_op)
+                $fatal(1, "[FAIL] %s alu_op: expected=%0d actual=%0d",
+                       test_name, expected_alu_op, alu_op_);
+
+            if (valid_inst_ !== expected_valid)
+                $fatal(1, "[FAIL] %s valid_inst: expected=%b actual=%b",
+                       test_name, expected_valid, valid_inst_);
+
+            if (branch_en_ !== expected_branch_en)
+                $fatal(1, "[FAIL] %s branch_en: expected=%b actual=%b",
+                       test_name, expected_branch_en, branch_en_);
+
+            if (branch_op_ !== expected_branch_op)
+                $fatal(1, "[FAIL] %s branch_op: expected=%03b actual=%03b",
+                       test_name, expected_branch_op, branch_op_);
 
             $display("[PASS] %s", test_name);
         end
@@ -282,6 +331,39 @@ module tb_Control_Unit;
             `OP_A_PC,
             "AUIPC selects PC as operand A"
         );
+
+        // 六種合法 branch 必須保留 funct3 作為 branch operation，且不得寫回。
+        check_branch_control(`Opcode_BRANCH, `F3_BEQ,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b1, 1'b1, `F3_BEQ,
+            "BEQ produces valid branch controls");
+        check_branch_control(`Opcode_BRANCH, `F3_BNE,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b1, 1'b1, `F3_BNE,
+            "BNE produces valid branch controls");
+        check_branch_control(`Opcode_BRANCH, `F3_BLT,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b1, 1'b1, `F3_BLT,
+            "BLT produces valid branch controls");
+        check_branch_control(`Opcode_BRANCH, `F3_BGE,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b1, 1'b1, `F3_BGE,
+            "BGE produces valid branch controls");
+        check_branch_control(`Opcode_BRANCH, `F3_BLTU,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b1, 1'b1, `F3_BLTU,
+            "BLTU produces valid branch controls");
+        check_branch_control(`Opcode_BRANCH, `F3_BGEU,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b1, 1'b1, `F3_BGEU,
+            "BGEU produces valid branch controls");
+
+        // 010、011 是保留的 branch funct3，必須維持安全值。
+        check_branch_control(`Opcode_BRANCH, 3'b010,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b0, 1'b0, `F3_BRANCH_NONE,
+            "reserved branch funct3 010 uses safe defaults");
+        check_branch_control(`Opcode_BRANCH, 3'b011,
+            1'b0, 1'b0, `ALUOP_NOP, 1'b0, 1'b0, `F3_BRANCH_NONE,
+            "reserved branch funct3 011 uses safe defaults");
+
+        // 非 branch 指令不得殘留 branch enable 或 operation。
+        check_branch_control(`Opcode_I, `F_ADDI,
+            1'b1, 1'b1, `ALUOP_ADD, 1'b1, 1'b0, `F3_BRANCH_NONE,
+            "ADDI keeps branch controls disabled");
 
         // 未知 opcode 必須保持安全輸出。
         check_control(

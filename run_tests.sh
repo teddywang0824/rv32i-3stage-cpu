@@ -85,6 +85,12 @@ run_forwarding_test() {
     tb/tb_Forwarding_Unit.sv
 }
 
+run_branch_unit_test() {
+  run_test tb_Branch_Unit \
+    rtl/Branch_Unit.sv \
+    tb/tb_Branch_Unit.sv
+}
+
 run_cpu_test() {
   run_test tb_CPU_Top \
     rtl/Controller.sv \
@@ -98,6 +104,7 @@ run_cpu_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Branch_Unit.sv \
     tb/tb_CPU_Top.sv
 }
 
@@ -114,7 +121,24 @@ run_hazard_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Branch_Unit.sv \
     tb/tb_Hazard_Observe.sv
+}
+
+run_branch_test() {
+  run_test tb_CPU_Branch \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Branch_Unit.sv \
+    tb/tb_CPU_Branch.sv
 }
 
 test_name="${1:-all}"
@@ -152,6 +176,15 @@ case "${test_name}" in
     run_forwarding_test
     ;;
 
+  branchunit)
+    run_branch_unit_test
+    ;;
+
+  branch)
+    run_branch_test
+    echo "Waveform: ${build_dir}/cpu_branch.vcd"
+    ;;
+
   hazard)
     run_hazard_test
     echo "Waveform: ${build_dir}/hazard_observe.vcd"
@@ -171,14 +204,16 @@ case "${test_name}" in
     run_alu_test
     run_control_test
     run_forwarding_test
+    run_branch_unit_test
     run_hazard_test
     run_cpu_test
+    run_branch_test
     echo "Waveform: ${build_dir}/cpu_top.vcd"
     ;;
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|alu|control|forwarding|hazard|cpu|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|alu|control|forwarding|branchunit|hazard|cpu|branch|all}" >&2
     exit 1
     ;;
 esac

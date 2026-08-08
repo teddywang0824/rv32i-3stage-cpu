@@ -217,18 +217,20 @@
         <table>
           <thead><tr><th>檔案／模組</th><th>目前內容</th><th>判定</th><th>接下來要補</th></tr></thead>
           <tbody>
-            <tr><td><code>PC.sv</code></td><td>reset、正常更新與 stall hold；優先權測試通過</td><td><span class="status ready">已驗證</span></td><td>分支階段加入 next-PC 選路</td></tr>
+            <tr><td><code>PC.sv</code></td><td>reset、stall hold 與 taken-branch target 選路</td><td><span class="status ready">已驗證</span></td><td>跳躍階段再加入 JAL/JALR target</td></tr>
             <tr><td><code>Program_ROM.sv</code></td><td>I/R-type 與連續 RAW 相依測試程式</td><td><span class="status ready">已驗證</span></td><td>之後改良程式映像載入方式</td></tr>
-            <tr><td><code>IFID.sv</code></td><td>同步保存 instruction 與其 PC，支援 flush 與 stall hold</td><td><span class="status ready">已驗證</span></td><td>分支階段沿用 instruction PC 計算 target</td></tr>
+            <tr><td><code>IFID.sv</code></td><td>同步保存 instruction 與其 PC，支援 branch flush 與 stall hold</td><td><span class="status ready">已驗證</span></td><td>跳躍階段沿用相同 flush 機制</td></tr>
             <tr><td><code>Inst_Decoder.sv</code></td><td>欄位拆解與 I/S/B/U/J immediate；正負值與 opcode 單元測試通過</td><td><span class="status ready">已驗證</span></td><td>隨後續指令擴充欄位與合法性檢查</td></tr>
             <tr><td><code>Reg_File.sv</code></td><td>雙讀單寫、x0 固定為 0；I/R-type writeback 通過</td><td><span class="status ready">已驗證</span></td><td>之後整合 load writeback</td></tr>
-            <tr><td><code>IDEX.sv</code></td><td>同步保存資料、控制訊號、operand-A 選擇與 instruction PC</td><td><span class="status ready">已驗證</span></td><td>分支階段再加入 branch 控制訊號</td></tr>
-            <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，已接入 EX stage</td><td><span class="status ready">已驗證</span></td><td>之後作為 branch address／compare 基礎</td></tr>
-            <tr><td><code>Control_Unit.sv</code></td><td>I/R-type、LUI/AUIPC control 與非法編碼安全值</td><td><span class="status ready">已驗證</span></td><td>下一階段擴充 branch/jump 與 memory control</td></tr>
+            <tr><td><code>IDEX.sv</code></td><td>同步保存資料、operand-A、instruction PC 與 branch controls</td><td><span class="status ready">已驗證</span></td><td>跳躍階段再加入 jump/writeback controls</td></tr>
+            <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，已接入 EX stage</td><td><span class="status ready">已驗證</span></td><td>之後用於 memory address 計算</td></tr>
+            <tr><td><code>Branch_Unit.sv</code></td><td>六種 branch 比較、PC-relative target 與 branch enable 保護</td><td><span class="status ready">已驗證</span></td><td>之後與 jump 共用 redirect/flush 仲裁</td></tr>
+            <tr><td><code>Control_Unit.sv</code></td><td>I/R、LUI/AUIPC 與六種 branch control；保留編碼安全化</td><td><span class="status ready">已驗證</span></td><td>下一階段擴充 jump 與 memory control</td></tr>
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX→ID rs1/rs2 bypass，含 x0 與 RegWrite 保護</td><td><span class="status ready">已驗證</span></td><td>load 加入後調整 forwarding 時機</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Top.sv</code></td><td>三級 I/R/LUI/AUIPC 資料路徑、forwarding 與 stall/bubble 框架</td><td><span class="status partial">整合中</span></td><td>下一步支援條件分支與控制流 flush</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>三級 I/R/U/branch 資料路徑、forwarding 與 taken-branch 雙級 flush</td><td><span class="status partial">整合中</span></td><td>下一步支援 JAL/JALR 與 PC+4 回寫</td></tr>
             <tr><td><code>tb_CPU_Top.sv</code></td><td>x0～x25 architectural state、forwarding 與非零 PC AUIPC 自動檢查</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
+            <tr><td><code>tb_CPU_Branch.sv</code></td><td>六種 branch 的 taken/not-taken、前後跳與雙級 flush，共 24 情境</td><td><span class="status ready">自動驗證</span></td><td>之後補與 load-use hazard 的交互測試</td></tr>
             <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
           </tbody>
         </table>
@@ -550,7 +552,8 @@
       "forwarding",
       "stall-framework",
       "immediates",
-      "upper"
+      "upper",
+      "branch"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();

@@ -46,6 +46,9 @@ logic valid_inst_; // 是否有這指令
 
 logic [1:0] operand_a_sel_;
 
+logic branch_en_;
+logic [2:0] branch_op_;
+
 // ID/EX signals
 logic [31:0] imm_r;
 logic [31:0] rs1_value_r;
@@ -66,16 +69,24 @@ logic [1:0] operand_a_sel_r;
 
 logic stall_; // 是否要暫停pc、ifid推進
 logic keepgoing;
-logic bubble;
+logic bubble_IDEX;
+logic bubble_IFID;
 
 logic [31:0] ifid_pc_r;
 logic [31:0] idex_pc_r;
+
+logic branch_en_r;
+logic [2:0] branch_op_r;
+
+// Branch Unit
+logic branch_taken;
+logic [31:0] branch_target;
 
 // ------------------------------------------------------------
 // Simple PC next logic
 // CH1: no branch / jump yet, so PC simply increments by 4
 // ------------------------------------------------------------
-assign pc_next_ = pc + 32'd4;
+assign pc_next_ = branch_taken ? branch_target : pc + 32'd4;
 
 // ------------------------------------------------------------
 // CH1: no execute/write-back stage yet
@@ -88,7 +99,8 @@ assign write_regf_en_r = reg_write_r && valid_inst_r;
 assign operand_b_choose = (alu_src_imm_r) ? imm_r : rs2_value_r;
 
 assign keepgoing = ~stall_;
-assign bubble = flush_IDEX_ || stall_;
+assign bubble_IDEX = flush_IDEX_ || stall_ || branch_taken;
+assign bubble_IFID = flush_IFID_ || branch_taken;
 
 assign stall_ = 1'b0; // temp
 
@@ -141,7 +153,7 @@ Program_ROM u_Program_Rom (
 IFID u_IFID (
     .clk          (clk),
     .rst          (rst),
-    .flush_IFID_  (flush_IFID_),
+    .flush_IFID_  (bubble_IFID),
     .inst_        (inst_),
     .write_en_    (keepgoing),
     .pc_(pc),
@@ -188,7 +200,9 @@ Control_Unit u_Control_Unit (
     .alu_src_imm_ (alu_src_imm_),
     .operand_a_sel_(operand_a_sel_),
     .alu_op_      (alu_op_),
-    .valid_inst_  (valid_inst_)
+    .valid_inst_  (valid_inst_),
+    .branch_en_(branch_en_),
+    .branch_op_(branch_op_)
 );
 
 // ------------------------------------------------------------
@@ -197,7 +211,7 @@ Control_Unit u_Control_Unit (
 IDEX u_IDEX (
     .clk          (clk),
     .rst          (rst),
-    .flush_IDEX_  (bubble),
+    .flush_IDEX_  (bubble_IDEX),
     .addr_rd_     (addr_rd_),
     .imm_         (imm_),
     .rs1_value_   (forwarded_rs1_value),
@@ -221,7 +235,13 @@ IDEX u_IDEX (
     .operand_a_sel_r(operand_a_sel_r),
 
     .ifid_pc_(ifid_pc_r),
-    .idex_pc_r(idex_pc_r)
+    .idex_pc_r(idex_pc_r),
+
+    .branch_en_(branch_en_),
+    .branch_en_r(branch_en_r),
+
+    .branch_op_(branch_op_),
+    .branch_op_r(branch_op_r)
 );
 
 ALU u_ALU (
@@ -243,6 +263,18 @@ Forwarding_Unit u_Forwarding_Unit (
 
     .forwarded_rs1_value(forwarded_rs1_value),
     .forwarded_rs2_value(forwarded_rs2_value)
+);
+
+Branch_Unit u_Branch_Unit (
+    .rs1_value_(rs1_value_r),
+    .rs2_value_(rs2_value_r),
+    .imm_(imm_r),
+    .branch_en_(branch_en_r),
+    .branch_op_(branch_op_r),
+    .pc_(idex_pc_r),
+
+    .branch_taken(branch_taken),
+    .branch_target(branch_target)
 );
 
 endmodule

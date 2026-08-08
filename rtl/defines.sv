@@ -74,4 +74,21 @@
 `define OP_A_ZERO   2'd1
 `define OP_A_PC     2'd3
 
+
+// Branch 解碼
+// 31       30       25 24    20 19    15 14  12 11      8 7       6      0
+// +----------+---------+--------+--------+------+----------+--------+--------+
+// | imm[12]  |imm[10:5]|  rs2   |  rs1   |funct3| imm[4:1] |imm[11]| opcode |
+// +----------+---------+--------+--------+------+----------+--------+--------+
+
+// Branch指令 funct3
+`define F3_BRANCH_NONE     3'b010
+
+`define F3_BEQ      3'b000 // rs1 == rs2
+`define F3_BNE      3'b001 // rs1 != rs2
+`define F3_BLT      3'b100 // rs1 <  rs2 (signed)
+`define F3_BGE      3'b101 // rs1 >= rs2 (signed)
+`define F3_BLTU     3'b110 // rs1 <  rs2 (unsigned)
+`define F3_BGEU     3'b111 // rs1 >= rs2 (unsigned)
+
 `endif

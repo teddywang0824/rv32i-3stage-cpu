@@ -9,7 +9,10 @@ module Control_Unit (
     output logic [1:0] operand_a_sel_,
     output logic alu_src_imm_, //operand b 是否選 imm
     output logic [3:0] alu_op_,
-    output logic valid_inst_ // 是否有這指令
+    output logic valid_inst_, // 是否有這指令
+
+    output logic branch_en_,
+    output logic [2:0] branch_op_
 );
 
 always_comb begin
@@ -17,6 +20,9 @@ always_comb begin
     alu_src_imm_ = 0;
     alu_op_ = `ALUOP_NOP;
     valid_inst_ = 0;
+
+    branch_en_ = 1'b0;
+    branch_op_ = `F3_BRANCH_NONE;
 
     case (opcode_)
         `Opcode_I :  begin
@@ -201,6 +207,22 @@ always_comb begin
             alu_src_imm_    = 1'b1;
             alu_op_         = `ALUOP_ADD;
             valid_inst_     = 1;
+        end
+        `Opcode_BRANCH: begin
+            reg_write_      = 1'b0;
+            operand_a_sel_  = `OP_A_ZERO;
+            alu_src_imm_    = 1'b0;
+            alu_op_         = `ALUOP_NOP;
+
+            if (funct3_ != 3'b010 && funct3_ != 3'b011) begin
+                branch_en_ = 1'b1;
+                valid_inst_ = 1;
+                branch_op_ = funct3_;
+            end else begin
+                branch_en_ = 1'b0;
+                valid_inst_ = 0;
+                branch_op_ = `F3_BRANCH_NONE;
+            end
         end
         default: begin
             reg_write_ = 0;
