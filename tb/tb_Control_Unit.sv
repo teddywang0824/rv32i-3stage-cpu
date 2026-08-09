@@ -15,6 +15,9 @@ module tb_Control_Unit;
     logic       branch_en_;
     logic [2:0] branch_op_;
     logic       jump_op_;
+    logic       mem_en;
+    logic       mem_write;
+    logic [2:0] store_op;
 
     Control_Unit u_Control_Unit (
         .opcode_      (opcode_),
@@ -27,7 +30,10 @@ module tb_Control_Unit;
         .valid_inst_  (valid_inst_),
         .branch_en_   (branch_en_),
         .branch_op_   (branch_op_),
-        .jump_op_     (jump_op_)
+        .jump_op_     (jump_op_),
+        .mem_en       (mem_en),
+        .mem_write    (mem_write),
+        .store_op     (store_op)
     );
 
     task automatic check_control(
@@ -61,6 +67,10 @@ module tb_Control_Unit;
             if (valid_inst_ !== expected_valid)
                 $fatal(1, "[FAIL] %s valid_inst: expected=%b actual=%b",
                        test_name, expected_valid, valid_inst_);
+
+            if (mem_en !== 1'b0 || mem_write !== 1'b0 ||
+                store_op !== `F3_STORE_NONE)
+                $fatal(1, "[FAIL] %s unexpectedly enables store controls", test_name);
 
             $display("[PASS] %s", test_name);
         end
@@ -111,6 +121,10 @@ module tb_Control_Unit;
                 $fatal(1, "[FAIL] %s jump_op must remain zero for non-jump instruction",
                        test_name);
 
+            if (mem_en !== 1'b0 || mem_write !== 1'b0 ||
+                store_op !== `F3_STORE_NONE)
+                $fatal(1, "[FAIL] %s unexpectedly enables store controls", test_name);
+
             $display("[PASS] %s", test_name);
         end
     endtask
@@ -158,6 +172,48 @@ module tb_Control_Unit;
             if (jump_op_ !== expected_jump_op)
                 $fatal(1, "[FAIL] %s jump_op: expected=%b actual=%b",
                        test_name, expected_jump_op, jump_op_);
+
+            if (mem_en !== 1'b0 || mem_write !== 1'b0 ||
+                store_op !== `F3_STORE_NONE)
+                $fatal(1, "[FAIL] %s unexpectedly enables store controls", test_name);
+
+            $display("[PASS] %s", test_name);
+        end
+    endtask
+
+    task automatic check_store_control(
+        input logic [2:0] test_funct3,
+        input logic       expected_valid,
+        input logic       expected_mem_en,
+        input logic       expected_mem_write,
+        input logic [2:0] expected_store_op,
+        input string      test_name
+    );
+        begin
+            opcode_ = `Opcode_STORE;
+            funct3_ = test_funct3;
+            funct7_ = 7'b101_0101;
+            #1;
+
+            if (operand_a_sel_ !== `OP_A_RS1)
+                $fatal(1, "[FAIL] %s operand A must select rs1", test_name);
+            if (operand_b_sel_ !== (expected_valid ? `OP_B_IMM : `OP_B_RS2))
+                $fatal(1, "[FAIL] %s operand B selection", test_name);
+            if (alu_op_ !== (expected_valid ? `ALUOP_ADD : `ALUOP_NOP))
+                $fatal(1, "[FAIL] %s ALU operation", test_name);
+            if (reg_write_ !== 1'b0)
+                $fatal(1, "[FAIL] %s store must not write Register File", test_name);
+            if (valid_inst_ !== expected_valid)
+                $fatal(1, "[FAIL] %s valid_inst", test_name);
+            if (mem_en !== expected_mem_en)
+                $fatal(1, "[FAIL] %s mem_en", test_name);
+            if (mem_write !== expected_mem_write)
+                $fatal(1, "[FAIL] %s mem_write", test_name);
+            if (store_op !== expected_store_op)
+                $fatal(1, "[FAIL] %s store_op: expected=%03b actual=%03b",
+                       test_name, expected_store_op, store_op);
+            if (branch_en_ !== 1'b0 || jump_op_ !== 1'b0)
+                $fatal(1, "[FAIL] %s store must not redirect control flow", test_name);
 
             $display("[PASS] %s", test_name);
         end
@@ -393,6 +449,17 @@ module tb_Control_Unit;
             1'b1, 1'b1, 1'b1, `F3_JAL, 1'b1,
             "JAL produces redirect and PC+4 write-back controls"
         );
+
+        check_store_control(`F3_SB, 1'b1, 1'b1, 1'b1, `F3_SB,
+                            "SB produces valid store controls");
+        check_store_control(`F3_SH, 1'b1, 1'b1, 1'b1, `F3_SH,
+                            "SH produces valid store controls");
+        check_store_control(`F3_SW, 1'b1, 1'b1, 1'b1, `F3_SW,
+                            "SW produces valid store controls");
+        check_store_control(3'b011, 1'b0, 1'b0, 1'b0, `F3_STORE_NONE,
+                            "reserved STORE funct3 011 uses safe controls");
+        check_store_control(3'b111, 1'b0, 1'b0, 1'b0, `F3_STORE_NONE,
+                            "reserved STORE funct3 111 uses safe controls");
 
         // JALR 只有 funct3=000 合法；ALU 產生 PC+4，跳轉單元另算 rs1+imm。
         check_jump_control(

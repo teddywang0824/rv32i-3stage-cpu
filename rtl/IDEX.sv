@@ -23,6 +23,10 @@ module IDEX (
     input logic [2:0] branch_op_,
     input logic jump_op_,
 
+    input logic mem_en,
+    input logic mem_write,
+    input logic [2:0] store_op,
+
     output logic [4:0] addr_rd_r,
     output logic [31:0] imm_r,
     output logic [31:0] rs1_value_r,
@@ -37,7 +41,11 @@ module IDEX (
 
     output logic branch_en_r,
     output logic [2:0] branch_op_r,
-    output logic jump_op_r
+    output logic jump_op_r,
+
+    output logic mem_en_r,
+    output logic mem_write_r,
+    output logic [2:0] store_op_r
 );
 
     always_ff @(posedge clk) begin
@@ -58,6 +66,11 @@ module IDEX (
             branch_en_r <= 1'b0;
             branch_op_r <= `F3_BRANCH_NONE;
             jump_op_r <= 0;
+
+            mem_en_r <= 0;
+            mem_write_r <= 0;
+            store_op_r <= 0;
+
         end
         else if (flush_IDEX_) begin
             addr_rd_r   <= 5'd0;
@@ -76,6 +89,10 @@ module IDEX (
             branch_en_r <= 1'b0;
             branch_op_r <= `F3_BRANCH_NONE;
             jump_op_r <= 0;
+
+            mem_en_r <= 0;
+            mem_write_r <= 0;
+            store_op_r <= 0;
         end
         else begin
             addr_rd_r   <= addr_rd_;
@@ -94,6 +111,10 @@ module IDEX (
             branch_en_r <= branch_en_;
             branch_op_r <= branch_op_;
             jump_op_r <= jump_op_;
+
+            mem_en_r <= mem_en;
+            mem_write_r <= mem_write;
+            store_op_r <= store_op;
         end
     end
 

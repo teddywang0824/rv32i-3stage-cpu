@@ -50,6 +50,10 @@ logic branch_en_;
 logic [2:0] branch_op_;
 logic jump_op_;
 
+logic mem_en;
+logic mem_write;
+logic [2:0] store_op;
+
 // ID/EX signals
 logic [31:0] imm_r;
 logic [31:0] rs1_value_r;
@@ -80,9 +84,23 @@ logic branch_en_r;
 logic [2:0] branch_op_r;
 logic jump_op_r;
 
+logic mem_en_r;
+logic mem_write_r;
+logic [2:0] store_op_r;
+
 // Branch Unit
 logic branch_taken;
 logic [31:0] branch_target;
+
+// Store Unit
+logic [3:0] byte_enable;
+logic [31:0] aligned_write_data;
+logic misaligned;
+
+// Data Mem
+logic [31:0] read_data;
+logic read_valid;
+logic check;
 
 // ------------------------------------------------------------
 // Simple PC next logic
@@ -127,6 +145,8 @@ always_comb begin
         default:    operand_a_choose = 32'b0;
     endcase
 end
+
+assign check = mem_en_r && !misaligned;
 
 // ------------------------------------------------------------
 // Controller
@@ -216,7 +236,10 @@ Control_Unit u_Control_Unit (
     .valid_inst_  (valid_inst_),
     .branch_en_(branch_en_),
     .branch_op_(branch_op_),
-    .jump_op_(jump_op_)
+    .jump_op_(jump_op_),
+    .mem_en(mem_en),
+    .mem_write(mem_write),
+    .store_op(store_op)
 );
 
 // ------------------------------------------------------------
@@ -258,7 +281,14 @@ IDEX u_IDEX (
     .branch_op_r(branch_op_r),
 
     .jump_op_(jump_op_),
-    .jump_op_r(jump_op_r)
+    .jump_op_r(jump_op_r),
+
+    .mem_en(mem_en),
+    .mem_write(mem_write),
+    .store_op(store_op),
+    .mem_en_r(mem_en_r),
+    .mem_write_r(mem_write_r),
+    .store_op_r(store_op_r)
 );
 
 ALU u_ALU (
@@ -293,6 +323,28 @@ Branch_Unit u_Branch_Unit (
 
     .branch_taken(branch_taken),
     .branch_target(branch_target)
+);
+
+Store_Unit u_Store_Unit (
+    .store_op(store_op_r),
+    .address(rd_value_),
+    .value(rs2_value_r),
+
+    .byte_enable(byte_enable),
+    .aligned_write_data(aligned_write_data),
+    .misaligned(misaligned)
+);
+
+Data_Memory u_Data_Memory (
+    .clk(clk),
+    .mem_en(check),
+    .mem_write(mem_write_r),
+    .byte_enable(byte_enable),
+    .address(rd_value_),
+    .write_data(aligned_write_data),
+
+    .read_data(read_data),
+    .read_valid(read_valid)
 );
 
 endmodule

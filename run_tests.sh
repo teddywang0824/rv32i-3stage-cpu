@@ -91,6 +91,18 @@ run_branch_unit_test() {
     tb/tb_Branch_Unit.sv
 }
 
+run_data_memory_test() {
+  run_test tb_Data_Memory \
+    rtl/Data_Memory.sv \
+    tb/tb_Data_Memory.sv
+}
+
+run_store_unit_test() {
+  run_test tb_Store_Unit \
+    rtl/Store_Unit.sv \
+    tb/tb_Store_Unit.sv
+}
+
 run_cpu_test() {
   run_test tb_CPU_Top \
     rtl/Controller.sv \
@@ -105,6 +117,8 @@ run_cpu_test() {
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
     rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
     tb/tb_CPU_Top.sv
 }
 
@@ -122,6 +136,8 @@ run_hazard_test() {
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
     rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
     tb/tb_Hazard_Observe.sv
 }
 
@@ -138,6 +154,8 @@ run_branch_test() {
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
     rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
     tb/tb_CPU_Branch.sv
 }
 
@@ -154,6 +172,8 @@ run_jal_test() {
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
     rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
     tb/tb_CPU_JAL.sv
 }
 
@@ -170,7 +190,27 @@ run_jalr_test() {
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
     rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
     tb/tb_CPU_JALR.sv
+}
+
+run_store_test() {
+  run_test tb_CPU_Store \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
+    tb/tb_CPU_Store.sv
 }
 
 test_name="${1:-all}"
@@ -212,6 +252,19 @@ case "${test_name}" in
     run_branch_unit_test
     ;;
 
+  memory)
+    run_data_memory_test
+    ;;
+
+  storeunit)
+    run_store_unit_test
+    ;;
+
+  store)
+    run_store_test
+    echo "Waveform: ${build_dir}/cpu_store.vcd"
+    ;;
+
   branch)
     run_branch_test
     echo "Waveform: ${build_dir}/cpu_branch.vcd"
@@ -247,6 +300,9 @@ case "${test_name}" in
     run_control_test
     run_forwarding_test
     run_branch_unit_test
+    run_data_memory_test
+    run_store_unit_test
+    run_store_test
     run_hazard_test
     run_cpu_test
     run_branch_test
@@ -257,7 +313,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|alu|control|forwarding|branchunit|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|alu|control|forwarding|branchunit|memory|storeunit|store|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

@@ -99,6 +99,12 @@
 
 // Jump 指令編碼(用於funct3)
 `define F3_JALR   3'b000
-`define F3_JAL    3'b001    
+`define F3_JAL    3'b001   
+
+// Store funct3
+`define F3_SB 3'b000
+`define F3_SH 3'b001
+`define F3_SW 3'b010
+`define F3_STORE_NONE 3'b011
 
 `endif

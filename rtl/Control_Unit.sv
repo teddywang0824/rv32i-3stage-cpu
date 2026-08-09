@@ -13,18 +13,27 @@ module Control_Unit (
 
     output logic branch_en_,
     output logic [2:0] branch_op_,
-    output logic jump_op_
+    output logic jump_op_,
+
+    output logic mem_en,
+    output logic mem_write,
+    output logic [2:0] store_op
 );
 
 always_comb begin
     reg_write_ = 0;
-    operand_b_sel_ = 0;
+    operand_a_sel_ = `OP_A_RS1;
+    operand_b_sel_ = `OP_B_RS2;
     alu_op_ = `ALUOP_NOP;
     valid_inst_ = 0;
 
     branch_en_ = 1'b0;
     branch_op_ = `F3_BRANCH_NONE;
     jump_op_ = 0;
+
+    mem_en = 0;
+    mem_write = 0;
+    store_op = `F3_STORE_NONE;
 
     case (opcode_)
         `Opcode_I :  begin
@@ -257,6 +266,24 @@ always_comb begin
                 branch_op_ = `F3_BRANCH_NONE ;
                 jump_op_ = 0;
             end
+        end
+        `Opcode_STORE : begin
+            case (funct3_)
+                `F3_SB, `F3_SH, `F3_SW: begin
+                    operand_a_sel_ = `OP_A_RS1;
+                    operand_b_sel_ = `OP_B_IMM;
+                    alu_op_ = `ALUOP_ADD;
+                    valid_inst_ = 1;
+                    reg_write_ = 0;
+                    mem_en = 1;
+                    mem_write = 1;
+                    store_op = funct3_;
+                end
+                default: begin
+                    valid_inst_ = 0;
+                    mem_en = 0;
+                end
+            endcase
         end
         default: begin
             reg_write_ = 0;

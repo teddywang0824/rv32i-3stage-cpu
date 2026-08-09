@@ -222,17 +222,20 @@
             <tr><td><code>IFID.sv</code></td><td>同步保存 instruction 與其 PC，支援 branch/jump flush 與 stall hold</td><td><span class="status ready">已驗證</span></td><td>之後與 memory stall 交互驗證</td></tr>
             <tr><td><code>Inst_Decoder.sv</code></td><td>欄位拆解與 I/S/B/U/J immediate；正負值與 opcode 單元測試通過</td><td><span class="status ready">已驗證</span></td><td>隨後續指令擴充欄位與合法性檢查</td></tr>
             <tr><td><code>Reg_File.sv</code></td><td>雙讀單寫、x0 固定為 0；I/R-type writeback 通過</td><td><span class="status ready">已驗證</span></td><td>之後整合 load writeback</td></tr>
-            <tr><td><code>IDEX.sv</code></td><td>同步保存資料、operand selectors、instruction PC 與 branch/jump controls</td><td><span class="status ready">已驗證</span></td><td>之後加入 memory controls</td></tr>
-            <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，已接入 EX stage</td><td><span class="status ready">已驗證</span></td><td>之後用於 memory address 計算</td></tr>
+            <tr><td><code>IDEX.sv</code></td><td>同步保存資料、operand selectors、PC、branch/jump 與 Store controls</td><td><span class="status ready">已驗證</span></td><td>下一步加入 Load controls</td></tr>
+            <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，並用於 Store effective address 計算</td><td><span class="status ready">已驗證</span></td><td>下一步沿用於 Load address</td></tr>
             <tr><td><code>Branch_Unit.sv</code></td><td>六種 branch 比較、PC-relative target 與 branch enable 保護</td><td><span class="status ready">已驗證</span></td><td>之後與 jump 共用 redirect/flush 仲裁</td></tr>
-            <tr><td><code>Control_Unit.sv</code></td><td>I/R、LUI/AUIPC、六種 branch、JAL/JALR control；保留編碼安全化</td><td><span class="status ready">已驗證</span></td><td>下一階段擴充 memory control</td></tr>
+            <tr><td><code>Data_Memory.sv</code></td><td>固定 4 KiB（1024×32）、同步讀寫、read valid 與 4-bit byte enable；已接 Store path</td><td><span class="status ready">已驗證</span></td><td>下一步接入 Load read path</td></tr>
+            <tr><td><code>Store_Unit.sv</code></td><td>SB/SH/SW byte enable、write-data 對齊與 misalignment suppression</td><td><span class="status ready">已驗證</span></td><td>控制流程回歸持續保留</td></tr>
+            <tr><td><code>Control_Unit.sv</code></td><td>I/R/U、branch、jump 與 SB/SH/SW controls；保留編碼安全化</td><td><span class="status ready">已驗證</span></td><td>下一步擴充 Load control</td></tr>
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX→ID rs1/rs2 bypass，含 x0 與 RegWrite 保護</td><td><span class="status ready">已驗證</span></td><td>load 加入後調整 forwarding 時機</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Top.sv</code></td><td>三級 I/R/U/branch/jump 資料路徑、forwarding 與 taken-control-flow 雙級 flush</td><td><span class="status partial">整合中</span></td><td>下一步建立 Data Memory</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>三級 I/R/U/branch/jump/Store 資料路徑、forwarding、misalignment suppression 與雙級 flush</td><td><span class="status partial">整合中</span></td><td>下一步支援 Load read/writeback</td></tr>
             <tr><td><code>tb_CPU_Top.sv</code></td><td>x0～x25 architectural state、forwarding 與非零 PC AUIPC 自動檢查</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
             <tr><td><code>tb_CPU_Branch.sv</code></td><td>六種 branch 的 taken/not-taken、前後跳與雙級 flush，共 24 情境</td><td><span class="status ready">自動驗證</span></td><td>之後補與 load-use hazard 的交互測試</td></tr>
             <tr><td><code>tb_CPU_JAL.sv</code></td><td>JAL 正負位移、PC+4 回寫、rd=x0 與雙級 flush</td><td><span class="status ready">自動驗證</span></td><td>控制流程回歸持續保留</td></tr>
             <tr><td><code>tb_CPU_JALR.sv</code></td><td>rs1+imm target、bit 0 清除、forwarding、負立即數、rd=x0 與非法 funct3</td><td><span class="status ready">自動驗證</span></td><td>之後補函式呼叫與 memory 的交互測試</td></tr>
+            <tr><td><code>tb_CPU_Store.sv</code></td><td>SB/SH/SW offsets、負 S-immediate、rs1/rs2 forwarding、misalignment 與 wrong-path flush</td><td><span class="status ready">自動驗證</span></td><td>下一步加入 Load/Store 交互測試</td></tr>
             <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
           </tbody>
         </table>
@@ -454,21 +457,21 @@
             id: "data-memory",
             title: "建立 Data Memory",
             summary: "先定義讀寫時序與 byte enable，再接 CPU。",
-            goal: "提供 word address、write data、byte enable、write enable 與 read data。",
+            goal: "提供 4 KiB word storage、write data、byte enable、write enable、同步 read data 與 read valid。",
             files: "新增 Data_Memory.sv 與 tb_Data_Memory.sv。",
-            work: ["word 對齊", "4-bit byte enable", "同步寫入", "定義讀取是組合或同步"],
-            verify: "各 byte lane 可獨立寫入，未被 enable 的 byte 不改變。",
-            caution: "三級設計最容易先採組合讀取；若目標 FPGA RAM 是同步讀取，可能需要調整 pipeline。"
+            work: ["4 KiB word addressing", "4-bit byte enable", "同步寫入", "同步讀取與 read_valid"],
+            verify: "完整 word、各 byte lane、disabled write、同步 address sampling 與最高 word address 測試全部通過。",
+            caution: "同步 read 具有一個 clock 的介面時序；整合 load 時需要增加 MEM stage 或精確 stall。"
           },
           {
             id: "stores",
             title: "支援 SB、SH、SW",
             summary: "依地址低兩位產生 byte enable 與對齊後資料。",
             goal: "三種 store 正確修改 Data Memory，且不寫 Register File。",
-            files: "Control_Unit.sv、CPU_Top.sv、Data_Memory.sv、測試。",
-            work: ["S-immediate", "address=rs1+imm", "byte/half/word enable", "misaligned policy"],
-            verify: "在四種 byte offset 寫入後逐 byte 檢查 memory。",
-            caution: "先明確決定未對齊存取是列為不支援，還是額外實作。"
+            files: "defines.sv、Control_Unit.sv、IDEX.sv、Store_Unit.sv、CPU_Top.sv、Data_Memory.sv 與 Store 測試。",
+            work: ["S-immediate", "address=rs1+imm", "byte/half/word enable", "misaligned suppression", "Store forwarding", "wrong-path flush"],
+            verify: "SB 四種 offset、SH 兩種對齊位置、SW、負立即數、rs1/rs2 forwarding、misalignment 與 flush 測試全部通過。",
+            caution: "目前未對齊 SH/SW 採不寫入策略；尚未實作 architectural exception。"
           },
           {
             id: "loads",
@@ -556,7 +559,9 @@
       "immediates",
       "upper",
       "branch",
-      "jump"
+      "jump",
+      "data-memory",
+      "stores"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();
