@@ -25,6 +25,7 @@ module tb_IDEX;
     logic branch_en_;
     logic [2:0] branch_op_;
     logic jump_op_;
+    logic [2:0] load_op_;
     logic mem_en;
     logic mem_write;
     logic [2:0] store_op;
@@ -38,6 +39,7 @@ module tb_IDEX;
     logic branch_en_r;
     logic [2:0] branch_op_r;
     logic jump_op_r;
+    logic [2:0] load_op_r;
     logic mem_en_r;
     logic mem_write_r;
     logic [2:0] store_op_r;
@@ -64,6 +66,7 @@ module tb_IDEX;
         .branch_en_(branch_en_),
         .branch_op_(branch_op_),
         .jump_op_(jump_op_),
+        .load_op_(load_op_),
         .mem_en(mem_en),
         .mem_write(mem_write),
         .store_op(store_op),
@@ -77,6 +80,7 @@ module tb_IDEX;
         .branch_en_r(branch_en_r),
         .branch_op_r(branch_op_r),
         .jump_op_r(jump_op_r),
+        .load_op_r(load_op_r),
         .mem_en_r(mem_en_r),
         .mem_write_r(mem_write_r),
         .store_op_r(store_op_r)
@@ -105,6 +109,7 @@ module tb_IDEX;
         input logic        expected_mem_en,
         input logic        expected_mem_write,
         input logic [2:0]  expected_store_op,
+        input logic [2:0]  expected_load_op,
         input string       test_name
     );
         begin
@@ -195,6 +200,9 @@ module tb_IDEX;
             if (expected_mem_en && store_op_r !== expected_store_op)
                 $fatal(1, "[FAIL] %s store_op: expected=%03b actual=%03b",
                        test_name, expected_store_op, store_op_r);
+            if (load_op_r !== expected_load_op)
+                $fatal(1, "[FAIL] %s load_op: expected=%03b actual=%03b",
+                       test_name, expected_load_op, load_op_r);
 
             $display("[PASS] %s", test_name);
         end
@@ -216,6 +224,7 @@ module tb_IDEX;
         branch_en_   = 1'b1;
         branch_op_   = `F3_JAL;
         jump_op_     = 1'b1;
+        load_op_     = `F3_LW;
         mem_en       = 1'b1;
         mem_write    = 1'b1;
         store_op     = `F3_SW;
@@ -226,7 +235,7 @@ module tb_IDEX;
         check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
-                      1'b0, 1'b0, `F3_STORE_NONE,
+                      1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
                       "reset clears all outputs");
 
         // 解除 reset，並在下一個上升緣同時保存四個欄位。
@@ -245,6 +254,7 @@ module tb_IDEX;
         branch_en_   = 1'b1;
         branch_op_   = `F3_JAL;
         jump_op_     = 1'b1;
+        load_op_     = `F3_LW;
         mem_en       = 1'b1;
         mem_write    = 1'b1;
         store_op     = `F3_SW;
@@ -255,7 +265,7 @@ module tb_IDEX;
                       32'h1234_5678, 32'hCAFE_BABE,
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       1'b1, `F3_JAL, 1'b1,
-                      1'b1, 1'b1, `F3_SW,
+                      1'b1, 1'b1, `F3_SW, `F3_LW,
                       "rising edge captures all inputs");
 
         // 在上升緣之間改變輸入，輸出仍應保持舊值。
@@ -276,12 +286,13 @@ module tb_IDEX;
         mem_en       = 1'b0;
         mem_write    = 1'b0;
         store_op     = `F3_STORE_NONE;
+        load_op_     = `F3_LB;
         #1;
         check_outputs(5'd7, 32'hFFFF_FFFB,
                       32'h1234_5678, 32'hCAFE_BABE,
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       1'b1, `F3_JAL, 1'b1,
-                      1'b1, 1'b1, `F3_SW,
+                      1'b1, 1'b1, `F3_SW, `F3_LW,
                       "outputs hold between rising edges");
 
         // 下一個上升緣才一起更新。
@@ -291,7 +302,7 @@ module tb_IDEX;
                       32'hAAAA_AAAA, 32'h5555_5555,
                       1'b0, `OP_B_RS2, `OP_A_ZERO, `ALUOP_SUB, 1'b0, 32'h0000_0104,
                       1'b0, `F3_BGEU, 1'b0,
-                      1'b0, 1'b0, `F3_STORE_NONE,
+                      1'b0, 1'b0, `F3_STORE_NONE, `F3_LB,
                       "next rising edge updates all outputs");
 
         // Flush 在上升緣將所有輸出清為 0。
@@ -313,13 +324,14 @@ module tb_IDEX;
         mem_en       = 1'b1;
         mem_write    = 1'b1;
         store_op     = `F3_SB;
+        load_op_     = `F3_LHU;
 
         @(posedge clk);
         #1;
         check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
-                      1'b0, 1'b0, `F3_STORE_NONE,
+                      1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
                       "flush clears all outputs");
 
         // 解除 flush 後恢復正常保存。
@@ -341,6 +353,7 @@ module tb_IDEX;
         mem_en       = 1'b1;
         mem_write    = 1'b1;
         store_op     = `F3_SH;
+        load_op_     = `F3_LBU;
 
         @(posedge clk);
         #1;
@@ -348,7 +361,7 @@ module tb_IDEX;
                       32'h0BAD_F00D, 32'h1357_2468,
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0300,
                       1'b1, `F3_JAL, 1'b1,
-                      1'b1, 1'b1, `F3_SH,
+                      1'b1, 1'b1, `F3_SH, `F3_LBU,
                       "ID/EX resumes after flush");
 
         // 第二次 reset 仍能清除所有輸出。
@@ -370,13 +383,14 @@ module tb_IDEX;
         mem_en       = 1'b1;
         mem_write    = 1'b1;
         store_op     = `F3_SW;
+        load_op_     = `F3_LH;
 
         @(posedge clk);
         #1;
         check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
-                      1'b0, 1'b0, `F3_STORE_NONE,
+                      1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
                       "second reset clears all outputs");
 
         $display("[PASS] tb_IDEX completed.");

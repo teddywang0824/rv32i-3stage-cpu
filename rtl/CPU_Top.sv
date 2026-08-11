@@ -54,15 +54,21 @@ logic mem_en;
 logic mem_write;
 logic [2:0] store_op;
 
+logic [2:0] load_op_;
+logic id_uses_rs1;
+logic id_uses_rs2;
+
 // ID/EX signals
 logic [31:0] imm_r;
 logic [31:0] rs1_value_r;
 logic [31:0] rs2_value_r;
+logic [4:0]  idex_addr_rd_r;
+logic [2:0]  idex_load_op_r;
 
-logic reg_write_r;
+logic idex_reg_write_r;
 logic [3:0] alu_op_r;
 logic [1:0] operand_b_sel_r;
-logic valid_inst_r;
+logic idex_valid_inst_r;
 
 logic [31:0] operand_a_choose;
 logic [31:0] operand_b_choose;
@@ -73,6 +79,7 @@ logic [31:0] forwarded_rs2_value;
 logic [1:0] operand_a_sel_r;
 
 logic stall_; // 是否要暫停pc、ifid推進
+logic load_use_stall;
 logic keepgoing;
 logic bubble_IDEX;
 logic bubble_IFID;
@@ -102,6 +109,20 @@ logic [31:0] read_data;
 logic read_valid;
 logic check;
 
+// EX/WB signals
+logic [31:0] alu_result_;
+logic        exwb_reg_write_r;
+logic        exwb_valid_inst_r;
+logic        exwb_mem_en_r;
+logic        exwb_mem_write_r;
+logic [2:0]  exwb_load_op_r;
+logic        ex_forward_en;
+logic [31:0] alu_result_r;
+
+// Load Unit
+logic [31:0] load_value;
+logic load_misaligned;
+
 // ------------------------------------------------------------
 // Simple PC next logic
 // CH1: no branch / jump yet, so PC simply increments by 4
@@ -114,7 +135,7 @@ assign pc_next_ = branch_taken ? branch_target : pc + 32'd4;
 // ------------------------------------------------------------
 // assign write_regf_en_r = 1'b0;
 // assign rd_value_       = 32'd0;
-assign write_regf_en_r = reg_write_r && valid_inst_r;
+assign write_regf_en_r = (exwb_reg_write_r && exwb_valid_inst_r) && (!(exwb_mem_en_r && !exwb_mem_write_r) || (read_valid && !load_misaligned)) ;
 
 // assign operand_b_choose = (operand_b_sel_r) ? imm_r : rs2_value_r;
 always_comb begin
@@ -133,7 +154,8 @@ assign keepgoing = ~stall_;
 assign bubble_IDEX = flush_IDEX_ || stall_ || branch_taken;
 assign bubble_IFID = flush_IFID_ || branch_taken;
 
-assign stall_ = 1'b0; // temp
+// assign stall_ = 1'b0; // temp
+assign stall_ = load_use_stall;
 
 always_comb begin
     operand_a_choose = 32'b0;
@@ -147,6 +169,8 @@ always_comb begin
 end
 
 assign check = mem_en_r && !misaligned;
+
+assign rd_value_ = (exwb_mem_en_r && !exwb_mem_write_r) ? load_value : alu_result_r;
 
 // ------------------------------------------------------------
 // Controller
@@ -239,7 +263,10 @@ Control_Unit u_Control_Unit (
     .jump_op_(jump_op_),
     .mem_en(mem_en),
     .mem_write(mem_write),
-    .store_op(store_op)
+    .store_op(store_op),
+    .load_op(load_op_),
+    .id_uses_rs1(id_uses_rs1),
+    .id_uses_rs2(id_uses_rs2)
 );
 
 // ------------------------------------------------------------
@@ -253,7 +280,7 @@ IDEX u_IDEX (
     .imm_         (imm_),
     .rs1_value_   (forwarded_rs1_value),
     .rs2_value_   (forwarded_rs2_value),
-    .addr_rd_r    (addr_rd_r),
+    .addr_rd_r    (idex_addr_rd_r),
     .imm_r        (imm_r),
     .rs1_value_r  (rs1_value_r),
     .rs2_value_r  (rs2_value_r),
@@ -263,10 +290,10 @@ IDEX u_IDEX (
     .alu_op_(alu_op_),
     .valid_inst_(valid_inst_),
 
-    .reg_write_r(reg_write_r),
+    .reg_write_r(idex_reg_write_r),
     .operand_b_sel_r(operand_b_sel_r),
     .alu_op_r(alu_op_r),
-    .valid_inst_r(valid_inst_r),
+    .valid_inst_r(idex_valid_inst_r),
     
     .operand_a_sel_(operand_a_sel_),
     .operand_a_sel_r(operand_a_sel_r),
@@ -285,10 +312,13 @@ IDEX u_IDEX (
 
     .mem_en(mem_en),
     .mem_write(mem_write),
-    .store_op(store_op),
     .mem_en_r(mem_en_r),
     .mem_write_r(mem_write_r),
-    .store_op_r(store_op_r)
+    .store_op(store_op),
+    .store_op_r(store_op_r),
+
+    .load_op_(load_op_),
+    .load_op_r(idex_load_op_r)
 );
 
 ALU u_ALU (
@@ -296,13 +326,20 @@ ALU u_ALU (
     .operand_b_ (operand_b_choose),
     .alu_op_    (alu_op_r),
 
-    .result_    (rd_value_)
+    .result_    (alu_result_)
 );
 
+// A load's EX result is an address rather than its final write-back value.
+assign ex_forward_en = idex_reg_write_r && idex_valid_inst_r
+                     && !(mem_en_r && !mem_write_r);
+
 Forwarding_Unit u_Forwarding_Unit (
-    .ex_reg_write(write_regf_en_r),
-    .ex_rd(addr_rd_r),
-    .rd_value_(rd_value_),
+    .ex_reg_write(ex_forward_en),
+    .ex_rd(idex_addr_rd_r),
+    .rd_value_(alu_result_),
+    .wb_reg_write(write_regf_en_r),
+    .wb_rd(addr_rd_r),
+    .wb_value(rd_value_),
     .id_rs1(addr_rs1_),
     .id_rs2(addr_rs2_),
     .rs1_value_(rs1_value_),
@@ -310,6 +347,42 @@ Forwarding_Unit u_Forwarding_Unit (
 
     .forwarded_rs1_value(forwarded_rs1_value),
     .forwarded_rs2_value(forwarded_rs2_value)
+);
+
+Hazard_Unit u_Hazard_Unit (
+    .ex_valid(idex_valid_inst_r),
+    .ex_mem_en(mem_en_r),
+    .ex_mem_write(mem_write_r),
+    .ex_reg_write(idex_reg_write_r),
+    .ex_rd(idex_addr_rd_r),
+
+    .id_valid(valid_inst_),
+    .id_uses_rs1(id_uses_rs1),
+    .id_uses_rs2(id_uses_rs2),
+    .id_rs1(addr_rs1_),
+    .id_rs2(addr_rs2_),
+
+    .load_use_stall(load_use_stall)
+);
+
+EXWB u_EXWB (
+    .clk(clk),
+    .rst(rst),
+    .alu_result_(alu_result_),
+    .addr_rd_(idex_addr_rd_r),
+    .reg_write_(idex_reg_write_r),
+    .valid_inst_(idex_valid_inst_r),
+    .mem_en_(mem_en_r),
+    .mem_write_(mem_write_r),
+    .load_op_(idex_load_op_r),
+
+    .alu_result_r(alu_result_r),
+    .addr_rd_r(addr_rd_r),
+    .reg_write_r(exwb_reg_write_r),
+    .valid_inst_r(exwb_valid_inst_r),
+    .mem_en_r(exwb_mem_en_r),
+    .mem_write_r(exwb_mem_write_r),
+    .load_op_r(exwb_load_op_r)
 );
 
 Branch_Unit u_Branch_Unit (
@@ -327,7 +400,7 @@ Branch_Unit u_Branch_Unit (
 
 Store_Unit u_Store_Unit (
     .store_op(store_op_r),
-    .address(rd_value_),
+    .address(alu_result_),
     .value(rs2_value_r),
 
     .byte_enable(byte_enable),
@@ -335,12 +408,21 @@ Store_Unit u_Store_Unit (
     .misaligned(misaligned)
 );
 
+Load_Unit u_Load_Unit (
+    .load_op(exwb_load_op_r),
+    .address(alu_result_r),
+    .read_data(read_data),
+
+    .load_value(load_value),
+    .load_misaligned(load_misaligned)
+);
+
 Data_Memory u_Data_Memory (
     .clk(clk),
     .mem_en(check),
     .mem_write(mem_write_r),
     .byte_enable(byte_enable),
-    .address(rd_value_),
+    .address(alu_result_),
     .write_data(aligned_write_data),
 
     .read_data(read_data),

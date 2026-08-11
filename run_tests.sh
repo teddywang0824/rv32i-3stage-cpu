@@ -67,6 +67,12 @@ run_idex_test() {
     tb/tb_IDEX.sv
 }
 
+run_exwb_test() {
+  run_test tb_EXWB \
+    rtl/EXWB.sv \
+    tb/tb_EXWB.sv
+}
+
 run_alu_test() {
   run_test tb_ALU \
     rtl/ALU.sv \
@@ -83,6 +89,12 @@ run_forwarding_test() {
   run_test tb_Forwarding_Unit \
     rtl/Forwarding_Unit.sv \
     tb/tb_Forwarding_Unit.sv
+}
+
+run_hazard_unit_test() {
+  run_test tb_Hazard_Unit \
+    rtl/Hazard_Unit.sv \
+    tb/tb_Hazard_Unit.sv
 }
 
 run_branch_unit_test() {
@@ -103,10 +115,17 @@ run_store_unit_test() {
     tb/tb_Store_Unit.sv
 }
 
+run_load_unit_test() {
+  run_test tb_Load_Unit \
+    rtl/Load_Unit.sv \
+    tb/tb_Load_Unit.sv
+}
+
 run_cpu_test() {
   run_test tb_CPU_Top \
     rtl/Controller.sv \
     rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
     rtl/IDEX.sv \
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
@@ -116,9 +135,11 @@ run_cpu_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
     rtl/Branch_Unit.sv \
     rtl/Store_Unit.sv \
     rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
     tb/tb_CPU_Top.sv
 }
 
@@ -126,6 +147,7 @@ run_hazard_test() {
   run_test tb_Hazard_Observe \
     rtl/Controller.sv \
     rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
     rtl/IDEX.sv \
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
@@ -135,9 +157,11 @@ run_hazard_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
     rtl/Branch_Unit.sv \
     rtl/Store_Unit.sv \
     rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
     tb/tb_Hazard_Observe.sv
 }
 
@@ -145,6 +169,7 @@ run_branch_test() {
   run_test tb_CPU_Branch \
     rtl/Controller.sv \
     rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
     rtl/IDEX.sv \
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
@@ -153,9 +178,11 @@ run_branch_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
     rtl/Branch_Unit.sv \
     rtl/Store_Unit.sv \
     rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
     tb/tb_CPU_Branch.sv
 }
 
@@ -163,6 +190,7 @@ run_jal_test() {
   run_test tb_CPU_JAL \
     rtl/Controller.sv \
     rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
     rtl/IDEX.sv \
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
@@ -171,9 +199,11 @@ run_jal_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
     rtl/Branch_Unit.sv \
     rtl/Store_Unit.sv \
     rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
     tb/tb_CPU_JAL.sv
 }
 
@@ -181,6 +211,7 @@ run_jalr_test() {
   run_test tb_CPU_JALR \
     rtl/Controller.sv \
     rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
     rtl/IDEX.sv \
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
@@ -189,9 +220,11 @@ run_jalr_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
     rtl/Branch_Unit.sv \
     rtl/Store_Unit.sv \
     rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
     tb/tb_CPU_JALR.sv
 }
 
@@ -199,6 +232,7 @@ run_store_test() {
   run_test tb_CPU_Store \
     rtl/Controller.sv \
     rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
     rtl/IDEX.sv \
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
@@ -207,10 +241,54 @@ run_store_test() {
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
     rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
     rtl/Branch_Unit.sv \
     rtl/Store_Unit.sv \
     rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
     tb/tb_CPU_Store.sv
+}
+
+run_load_test() {
+  run_test tb_CPU_Load \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
+    rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
+    tb/tb_CPU_Load.sv
+}
+
+run_load_hazard_test() {
+  run_test tb_CPU_Load_Hazard \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
+    rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
+    tb/tb_CPU_Load_Hazard.sv
 }
 
 test_name="${1:-all}"
@@ -236,6 +314,10 @@ case "${test_name}" in
     run_idex_test
     ;;
 
+  exwb)
+    run_exwb_test
+    ;;
+
   alu)
     run_alu_test
     ;;
@@ -246,6 +328,10 @@ case "${test_name}" in
 
   forwarding)
     run_forwarding_test
+    ;;
+
+  hazardunit)
+    run_hazard_unit_test
     ;;
 
   branchunit)
@@ -260,9 +346,23 @@ case "${test_name}" in
     run_store_unit_test
     ;;
 
+  loadunit)
+    run_load_unit_test
+    ;;
+
   store)
     run_store_test
     echo "Waveform: ${build_dir}/cpu_store.vcd"
+    ;;
+
+  load)
+    run_load_test
+    echo "Waveform: ${build_dir}/cpu_load.vcd"
+    ;;
+
+  loadhazard)
+    run_load_hazard_test
+    echo "Waveform: ${build_dir}/cpu_load_hazard.vcd"
     ;;
 
   branch)
@@ -296,13 +396,18 @@ case "${test_name}" in
     run_inst_decoder_test
     run_ifid_test
     run_idex_test
+    run_exwb_test
     run_alu_test
     run_control_test
     run_forwarding_test
+    run_hazard_unit_test
     run_branch_unit_test
     run_data_memory_test
     run_store_unit_test
+    run_load_unit_test
     run_store_test
+    run_load_test
+    run_load_hazard_test
     run_hazard_test
     run_cpu_test
     run_branch_test
@@ -313,7 +418,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|alu|control|forwarding|branchunit|memory|storeunit|store|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|store|load|loadhazard|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

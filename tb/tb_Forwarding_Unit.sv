@@ -5,6 +5,9 @@ module tb_Forwarding_Unit;
     logic        ex_reg_write;
     logic [4:0]  ex_rd;
     logic [31:0] rd_value_;
+    logic        wb_reg_write;
+    logic [4:0]  wb_rd;
+    logic [31:0] wb_value;
     logic [4:0]  id_rs1;
     logic [4:0]  id_rs2;
     logic [31:0] rs1_value_;
@@ -17,6 +20,9 @@ module tb_Forwarding_Unit;
         .ex_reg_write       (ex_reg_write),
         .ex_rd              (ex_rd),
         .rd_value_          (rd_value_),
+        .wb_reg_write       (wb_reg_write),
+        .wb_rd              (wb_rd),
+        .wb_value           (wb_value),
         .id_rs1             (id_rs1),
         .id_rs2             (id_rs2),
         .rs1_value_         (rs1_value_),
@@ -66,6 +72,9 @@ module tb_Forwarding_Unit;
     endtask
 
     initial begin
+        wb_reg_write = 1'b0;
+        wb_rd = 5'd0;
+        wb_value = 32'd0;
         // 即使 rd 與兩個 source 都相同，RegWrite=0 時也不能 forwarding。
         check_forwarding(
             1'b0, 5'd5, 5'd5, 5'd5,
@@ -113,6 +122,28 @@ module tb_Forwarding_Unit;
             32'h1357_2468, 32'h1357_2468,
             "rs1 and rs2 both forward EX result"
         );
+
+        ex_reg_write = 1'b0;
+        wb_reg_write = 1'b1;
+        wb_rd = 5'd6;
+        wb_value = 32'h2468_ACED;
+        id_rs1 = 5'd6;
+        id_rs2 = 5'd2;
+        rs1_value_ = 32'h1111_1111;
+        rs2_value_ = 32'h2222_2222;
+        #1;
+        if (forwarded_rs1_value !== 32'h2468_ACED ||
+            forwarded_rs2_value !== 32'h2222_2222)
+            $fatal(1, "[FAIL] WB forwarding");
+        $display("[PASS] WB result forwards to rs1");
+
+        ex_reg_write = 1'b1;
+        ex_rd = 5'd6;
+        rd_value_ = 32'hAAAA_5555;
+        #1;
+        if (forwarded_rs1_value !== 32'hAAAA_5555)
+            $fatal(1, "[FAIL] EX must have priority over WB");
+        $display("[PASS] EX forwarding has priority over WB");
 
         $display("[PASS] tb_Forwarding_Unit completed.");
         $finish;

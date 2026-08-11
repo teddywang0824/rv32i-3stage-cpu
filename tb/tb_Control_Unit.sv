@@ -18,6 +18,9 @@ module tb_Control_Unit;
     logic       mem_en;
     logic       mem_write;
     logic [2:0] store_op;
+    logic [2:0] load_op;
+    logic       id_uses_rs1;
+    logic       id_uses_rs2;
 
     Control_Unit u_Control_Unit (
         .opcode_      (opcode_),
@@ -33,7 +36,10 @@ module tb_Control_Unit;
         .jump_op_     (jump_op_),
         .mem_en       (mem_en),
         .mem_write    (mem_write),
-        .store_op     (store_op)
+        .store_op     (store_op),
+        .load_op      (load_op),
+        .id_uses_rs1  (id_uses_rs1),
+        .id_uses_rs2  (id_uses_rs2)
     );
 
     task automatic check_control(
@@ -69,7 +75,7 @@ module tb_Control_Unit;
                        test_name, expected_valid, valid_inst_);
 
             if (mem_en !== 1'b0 || mem_write !== 1'b0 ||
-                store_op !== `F3_STORE_NONE)
+                store_op !== `F3_STORE_NONE || load_op !== `F3_LOAD_NONE)
                 $fatal(1, "[FAIL] %s unexpectedly enables store controls", test_name);
 
             $display("[PASS] %s", test_name);
@@ -122,7 +128,7 @@ module tb_Control_Unit;
                        test_name);
 
             if (mem_en !== 1'b0 || mem_write !== 1'b0 ||
-                store_op !== `F3_STORE_NONE)
+                store_op !== `F3_STORE_NONE || load_op !== `F3_LOAD_NONE)
                 $fatal(1, "[FAIL] %s unexpectedly enables store controls", test_name);
 
             $display("[PASS] %s", test_name);
@@ -174,7 +180,7 @@ module tb_Control_Unit;
                        test_name, expected_jump_op, jump_op_);
 
             if (mem_en !== 1'b0 || mem_write !== 1'b0 ||
-                store_op !== `F3_STORE_NONE)
+                store_op !== `F3_STORE_NONE || load_op !== `F3_LOAD_NONE)
                 $fatal(1, "[FAIL] %s unexpectedly enables store controls", test_name);
 
             $display("[PASS] %s", test_name);
@@ -212,8 +218,61 @@ module tb_Control_Unit;
             if (store_op !== expected_store_op)
                 $fatal(1, "[FAIL] %s store_op: expected=%03b actual=%03b",
                        test_name, expected_store_op, store_op);
+            if (load_op !== `F3_LOAD_NONE)
+                $fatal(1, "[FAIL] %s Store must keep load_op disabled", test_name);
             if (branch_en_ !== 1'b0 || jump_op_ !== 1'b0)
                 $fatal(1, "[FAIL] %s store must not redirect control flow", test_name);
+
+            $display("[PASS] %s", test_name);
+        end
+    endtask
+
+    task automatic check_load_control(
+        input logic [2:0] test_funct3,
+        input logic       expected_valid,
+        input string      test_name
+    );
+        begin
+            opcode_ = `Opcode_LOAD;
+            funct3_ = test_funct3;
+            // For a Load, inst[31:25] belongs to the immediate and must not
+            // affect instruction legality.
+            funct7_ = 7'b101_0101;
+            #1;
+
+            if (operand_a_sel_ !== `OP_A_RS1)
+                $fatal(1, "[FAIL] %s operand A must select rs1", test_name);
+            if (operand_b_sel_ !== (expected_valid ? `OP_B_IMM : `OP_B_RS2))
+                $fatal(1, "[FAIL] %s operand B: expected=%0d actual=%0d",
+                       test_name,
+                       (expected_valid ? `OP_B_IMM : `OP_B_RS2),
+                       operand_b_sel_);
+            if (alu_op_ !== (expected_valid ? `ALUOP_ADD : `ALUOP_NOP))
+                $fatal(1, "[FAIL] %s ALU op: expected=%0d actual=%0d",
+                       test_name,
+                       (expected_valid ? `ALUOP_ADD : `ALUOP_NOP),
+                       alu_op_);
+            if (reg_write_ !== expected_valid)
+                $fatal(1, "[FAIL] %s reg_write: expected=%b actual=%b",
+                       test_name, expected_valid, reg_write_);
+            if (valid_inst_ !== expected_valid)
+                $fatal(1, "[FAIL] %s valid_inst: expected=%b actual=%b",
+                       test_name, expected_valid, valid_inst_);
+            if (mem_en !== expected_valid)
+                $fatal(1, "[FAIL] %s mem_en: expected=%b actual=%b",
+                       test_name, expected_valid, mem_en);
+            if (mem_write !== 1'b0)
+                $fatal(1, "[FAIL] %s Load must not enable memory write", test_name);
+            if (store_op !== `F3_STORE_NONE)
+                $fatal(1, "[FAIL] %s Load must keep store_op disabled", test_name);
+            if (load_op !== (expected_valid ? test_funct3 : `F3_LOAD_NONE))
+                $fatal(1, "[FAIL] %s load_op: expected=%03b actual=%03b",
+                       test_name,
+                       (expected_valid ? test_funct3 : `F3_LOAD_NONE),
+                       load_op);
+            if (branch_en_ !== 1'b0 || branch_op_ !== `F3_BRANCH_NONE ||
+                jump_op_ !== 1'b0)
+                $fatal(1, "[FAIL] %s Load must not redirect control flow", test_name);
 
             $display("[PASS] %s", test_name);
         end
@@ -240,7 +299,56 @@ module tb_Control_Unit;
         end
     endtask
 
+    task automatic check_source_usage(
+        input logic [6:0] test_opcode,
+        input logic [2:0] test_funct3,
+        input logic [6:0] test_funct7,
+        input logic       expected_uses_rs1,
+        input logic       expected_uses_rs2,
+        input string      test_name
+    );
+        begin
+            opcode_ = test_opcode;
+            funct3_ = test_funct3;
+            funct7_ = test_funct7;
+            #1;
+
+            if (id_uses_rs1 !== expected_uses_rs1 ||
+                id_uses_rs2 !== expected_uses_rs2)
+                $fatal(1,
+                    "[FAIL] %s source usage: expected=%b%b actual=%b%b",
+                    test_name, expected_uses_rs1, expected_uses_rs2,
+                    id_uses_rs1, id_uses_rs2
+                );
+
+            $display("[PASS] %s", test_name);
+        end
+    endtask
+
     initial begin
+        check_source_usage(`Opcode_I, `F_ADDI, 7'b101_0101,
+                           1'b1, 1'b0, "I-type uses rs1 only");
+        check_source_usage(`Opcode_R_M, `F_ADD_SUB, `F7_ADD,
+                           1'b1, 1'b1, "R-type uses rs1 and rs2");
+        check_source_usage(`Opcode_LOAD, `F3_LW, 7'b101_0101,
+                           1'b1, 1'b0, "Load uses base rs1 only");
+        check_source_usage(`Opcode_STORE, `F3_SW, 7'b101_0101,
+                           1'b1, 1'b1, "Store uses base rs1 and data rs2");
+        check_source_usage(`Opcode_BRANCH, `F3_BEQ, 7'b101_0101,
+                           1'b1, 1'b1, "Branch uses rs1 and rs2");
+        check_source_usage(`Opcode_JALR, `F3_JALR, 7'b101_0101,
+                           1'b1, 1'b0, "JALR uses base rs1 only");
+        check_source_usage(`Opcode_LUI, 3'b101, 7'b101_0101,
+                           1'b0, 1'b0, "LUI uses no source register");
+        check_source_usage(`Opcode_AUIPC, 3'b010, 7'b010_1010,
+                           1'b0, 1'b0, "AUIPC uses no source register");
+        check_source_usage(`Opcode_JAL, 3'b101, 7'b101_0101,
+                           1'b0, 1'b0, "JAL uses no source register");
+        check_source_usage(`Opcode_LOAD, 3'b011, 7'b101_0101,
+                           1'b0, 1'b0, "illegal Load uses no source register");
+        check_source_usage(7'b111_1111, 3'b111, 7'b111_1111,
+                           1'b0, 1'b0, "unknown opcode uses no source register");
+
         // I-type 的 funct7_ 實際上是 immediate 的一部分；
         // 以下非 shift-immediate 指令不應依賴它來解碼。
         check_control(
@@ -460,6 +568,22 @@ module tb_Control_Unit;
                             "reserved STORE funct3 011 uses safe controls");
         check_store_control(3'b111, 1'b0, 1'b0, 1'b0, `F3_STORE_NONE,
                             "reserved STORE funct3 111 uses safe controls");
+
+        // Load uses rs1 + I-immediate as the address. Only five funct3 values
+        // are legal in RV32I; reserved/unknown values must have no side effects.
+        check_load_control(`F3_LB,  1'b1, "LB produces valid load controls");
+        check_load_control(`F3_LH,  1'b1, "LH produces valid load controls");
+        check_load_control(`F3_LW,  1'b1, "LW produces valid load controls");
+        check_load_control(`F3_LBU, 1'b1, "LBU produces valid load controls");
+        check_load_control(`F3_LHU, 1'b1, "LHU produces valid load controls");
+        check_load_control(3'b011, 1'b0,
+                           "reserved LOAD funct3 011 uses safe controls");
+        check_load_control(3'b110, 1'b0,
+                           "reserved LOAD funct3 110 uses safe controls");
+        check_load_control(3'b111, 1'b0,
+                           "reserved LOAD funct3 111 uses safe controls");
+        check_load_control(3'bxxx, 1'b0,
+                           "unknown LOAD funct3 uses safe controls");
 
         // JALR 只有 funct3=000 合法；ALU 產生 PC+4，跳轉單元另算 rs1+imm。
         check_jump_control(

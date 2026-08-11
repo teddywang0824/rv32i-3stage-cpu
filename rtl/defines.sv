@@ -107,4 +107,13 @@
 `define F3_SW 3'b010
 `define F3_STORE_NONE 3'b011
 
+// Load funct3
+`define F3_LB 3'b000
+`define F3_LH 3'b001
+`define F3_LW 3'b010
+`define F3_LBU 3'b100
+`define F3_LHU 3'b101
+
+`define F3_LOAD_NONE 3'b011
+
 `endif

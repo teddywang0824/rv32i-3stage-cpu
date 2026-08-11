@@ -17,7 +17,11 @@ module Control_Unit (
 
     output logic mem_en,
     output logic mem_write,
-    output logic [2:0] store_op
+    output logic [2:0] store_op,
+    output logic [2:0] load_op,
+
+    output logic id_uses_rs1,
+    output logic id_uses_rs2
 );
 
 always_comb begin
@@ -34,6 +38,11 @@ always_comb begin
     mem_en = 0;
     mem_write = 0;
     store_op = `F3_STORE_NONE;
+
+    load_op = `F3_LOAD_NONE;
+
+    id_uses_rs1 = 1'b0;
+    id_uses_rs2 = 1'b0;
 
     case (opcode_)
         `Opcode_I :  begin
@@ -285,6 +294,24 @@ always_comb begin
                 end
             endcase
         end
+        `Opcode_LOAD : begin
+            case (funct3_)
+                `F3_LB, `F3_LH,`F3_LW, `F3_LBU, `F3_LHU: begin
+                    operand_a_sel_ = `OP_A_RS1;
+                    operand_b_sel_ = `OP_B_IMM;
+                    alu_op_ = `ALUOP_ADD;
+                    valid_inst_ = 1;
+                    reg_write_ = 1;
+                    mem_en = 1;
+                    mem_write = 0;
+                    load_op = funct3_;
+                end
+                default: begin
+                    valid_inst_ = 0;
+                    mem_en = 0;
+                end
+            endcase
+        end
         default: begin
             reg_write_ = 0;
             operand_b_sel_ = 0;
@@ -293,6 +320,27 @@ always_comb begin
             valid_inst_ = 0;
         end
     endcase
+
+    // Source-register usage belongs to the decoded instruction in ID.
+    // Only legal instructions may claim a source, preventing false hazards
+    // from immediate bits that overlap the encoded rs1/rs2 fields.
+    if (valid_inst_) begin
+        case (opcode_)
+            `Opcode_I, `Opcode_LOAD, `Opcode_JALR: begin
+                id_uses_rs1 = 1'b1;
+            end
+
+            `Opcode_R_M, `Opcode_STORE, `Opcode_BRANCH: begin
+                id_uses_rs1 = 1'b1;
+                id_uses_rs2 = 1'b1;
+            end
+
+            default: begin
+                id_uses_rs1 = 1'b0;
+                id_uses_rs2 = 1'b0;
+            end
+        endcase
+    end
 end
     
 endmodule
