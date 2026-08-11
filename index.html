@@ -231,11 +231,11 @@
             <tr><td><code>Data_Memory.sv</code></td><td>固定 4 KiB（1024×32）、同步讀寫、read valid 與 4-bit byte enable；Load/Store path 已接入</td><td><span class="status ready">已驗證</span></td><td>之後抽換 SRAM wrapper 時維持相同時序契約</td></tr>
             <tr><td><code>Store_Unit.sv</code></td><td>SB/SH/SW byte enable、write-data 對齊與 misalignment suppression</td><td><span class="status ready">已驗證</span></td><td>控制流程回歸持續保留</td></tr>
             <tr><td><code>Load_Unit.sv</code></td><td>LB/LH sign extension、LBU/LHU zero extension、LW、misalignment 與緊鄰 load-use dependency</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
-            <tr><td><code>Control_Unit.sv</code></td><td>I/R/U、branch、jump、Load/Store controls；保留編碼安全化</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
+            <tr><td><code>Control_Unit.sv</code></td><td>I/R/U、branch、jump、Load/Store controls；以 valid_inst_ 區分合法性，非法與保留編碼皆輸出安全預設值</td><td><span class="status ready">已驗證</span></td><td>持續保留非法編碼與完整回歸</td></tr>
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX/WB→ID rs1/rs2 bypass；Load address 不會在 EX 被誤當成結果 forwarding，並已整合 load-use 精確 stall</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>Hazard_Unit.sv</code></td><td>比較 EX Load 的 rd 與 ID 指令真正使用的 rs1/rs2；排除 x0 與未使用來源，真相依時精確 stall 一個 cycle</td><td><span class="status ready">已驗證</span></td><td>之後可延伸支援可變延遲 memory</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Top.sv</code></td><td>四級 I/R/U/branch/jump/Load/Store 資料路徑、同步 memory response、writeback mux、forwarding、雙級 flush 與 load-use 精確 stall</td><td><span class="status ready">已驗證</span></td><td>下一步加入 illegal instruction 安全處理</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>四級 I/R/U/branch/jump/Load/Store 資料路徑、同步 memory response、writeback mux、forwarding、雙級 flush、load-use stall 與非法指令安全 NOP</td><td><span class="status ready">已驗證</span></td><td>下一步執行整合小程式</td></tr>
             <tr><td><code>tb_CPU_Top.sv</code></td><td>x0～x25 architectural state、forwarding 與非零 PC AUIPC 自動檢查</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
             <tr><td><code>tb_CPU_Branch.sv</code></td><td>六種 branch 的 taken/not-taken、前後跳與雙級 flush，共 24 情境</td><td><span class="status ready">自動驗證</span></td><td>load-use 與 branch 的交互測試已另行補齊</td></tr>
             <tr><td><code>tb_CPU_JAL.sv</code></td><td>JAL 正負位移、PC+4 回寫、rd=x0 與雙級 flush</td><td><span class="status ready">自動驗證</span></td><td>控制流程回歸持續保留</td></tr>
@@ -243,6 +243,7 @@
             <tr><td><code>tb_CPU_Store.sv</code></td><td>SB/SH/SW offsets、負 S-immediate、rs1/rs2 forwarding、misalignment 與 wrong-path flush</td><td><span class="status ready">自動驗證</span></td><td>下一步加入 Load/Store 交互測試</td></tr>
             <tr><td><code>tb_CPU_Load.sv</code></td><td>五種 Load、signed/unsigned extension、連續 request、負立即數、base forwarding、misalignment、flush 與非法編碼</td><td><span class="status ready">自動驗證</span></td><td>load-use 緊鄰相依測試已另行補齊</td></tr>
             <tr><td><code>tb_CPU_Load_Hazard.sv</code></td><td>涵蓋 Load→ALU、R-type 雙來源、Store 位址/資料、Branch、JALR、假相依與間隔一指令，共 7 類整合情境</td><td><span class="status ready">自動驗證</span></td><td>作為 load-use hazard 的整合回歸測試</td></tr>
+            <tr><td><code>tb_CPU_Illegal.sv</code></td><td>注入 7 類非法編碼，確認皆到達 ID 且不寫 register/memory、不 redirect，後續合法 ADDI 與 SW 仍執行</td><td><span class="status ready">自動驗證</span></td><td>作為非法指令安全行為的整合回歸測試</td></tr>
             <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
           </tbody>
         </table>
@@ -510,9 +511,9 @@
             title: "定義 illegal instruction 與安全預設行為",
             summary: "不認識的編碼絕不能意外改變狀態。",
             goal: "所有不支援的 opcode/funct 組合都轉成無副作用操作。",
-            files: "Control_Unit.sv、測試。",
-            work: ["illegal flag", "RegWrite=0", "MemWrite=0", "可選擇停機或記錄"],
-            verify: "注入多種非法編碼後，register 與 memory 完全不變。",
+            files: "Control_Unit.sv、tb_Control_Unit.sv、tb_CPU_Illegal.sv、run_tests.sh。",
+            work: ["valid_inst_=0", "RegWrite=0", "MemWrite=0", "redirect=0", "source usage=0", "安全 NOP"],
+            verify: "7 類非法編碼皆到達 ID 且不改變 register、memory 或控制流程；後續合法指令仍正常執行。",
             caution: "SystemVerilog unique case 的 warning 不能取代硬體中的安全 default。"
           },
           {
@@ -570,7 +571,8 @@
       "data-memory",
       "stores",
       "loads",
-      "load-hazard"
+      "load-hazard",
+      "illegal"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();

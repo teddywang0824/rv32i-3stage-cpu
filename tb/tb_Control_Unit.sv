@@ -325,7 +325,90 @@ module tb_Control_Unit;
         end
     endtask
 
+    // An unsupported encoding is treated as a safe NOP.  Checking all
+    // side-effect controls together prevents a test from passing merely
+    // because valid_inst_ and reg_write_ happened to be low.
+    task automatic check_illegal_safe(
+        input logic [6:0] test_opcode,
+        input logic [2:0] test_funct3,
+        input logic [6:0] test_funct7,
+        input string      test_name
+    );
+        begin
+            opcode_ = test_opcode;
+            funct3_ = test_funct3;
+            funct7_ = test_funct7;
+            #1;
+
+            if (valid_inst_ !== 1'b0)
+                $fatal(1, "[FAIL] %s must be marked invalid", test_name);
+
+            if (reg_write_ !== 1'b0)
+                $fatal(1, "[FAIL] %s unexpectedly enables Register File write", test_name);
+
+            if (mem_en !== 1'b0 || mem_write !== 1'b0)
+                $fatal(1, "[FAIL] %s unexpectedly enables memory access", test_name);
+
+            if (branch_en_ !== 1'b0 || jump_op_ !== 1'b0)
+                $fatal(1, "[FAIL] %s unexpectedly redirects control flow", test_name);
+
+            if (id_uses_rs1 !== 1'b0 || id_uses_rs2 !== 1'b0)
+                $fatal(1, "[FAIL] %s unexpectedly claims source registers", test_name);
+
+            if (alu_op_ !== `ALUOP_NOP)
+                $fatal(1, "[FAIL] %s ALU operation must be NOP", test_name);
+
+            if (branch_op_ !== `F3_BRANCH_NONE ||
+                store_op !== `F3_STORE_NONE ||
+                load_op !== `F3_LOAD_NONE)
+                $fatal(1, "[FAIL] %s leaves a functional operation selected", test_name);
+
+            $display("[PASS] %s has no side effects", test_name);
+        end
+    endtask
+
     initial begin
+        // Step 20: every unsupported opcode/funct combination must decode as
+        // a safe NOP, including memory, redirect, and hazard metadata.
+        check_illegal_safe(7'b111_1111, 3'b111, 7'b111_1111,
+                           "unknown opcode");
+
+        check_illegal_safe(`Opcode_R_M, `F_ADD_SUB, 7'b000_0001,
+                           "illegal R-type ADD/SUB funct7");
+        check_illegal_safe(`Opcode_R_M, `F_AND, `F7_SUB,
+                           "illegal general R-type funct7");
+
+        check_illegal_safe(`Opcode_I, `F_SLLI, 7'b000_0001,
+                           "illegal SLLI funct7");
+        check_illegal_safe(`Opcode_I, `F_SRLI_SRAI, 7'b000_0001,
+                           "illegal SRLI/SRAI funct7");
+
+        check_illegal_safe(`Opcode_BRANCH, 3'b010, 7'b000_0000,
+                           "reserved BRANCH funct3 010");
+        check_illegal_safe(`Opcode_BRANCH, 3'b011, 7'b000_0000,
+                           "reserved BRANCH funct3 011");
+
+        check_illegal_safe(`Opcode_JALR, 3'b001, 7'b101_0101,
+                           "reserved JALR funct3");
+
+        check_illegal_safe(`Opcode_LOAD, 3'b011, 7'b101_0101,
+                           "reserved LOAD funct3 011");
+        check_illegal_safe(`Opcode_LOAD, 3'b110, 7'b101_0101,
+                           "reserved LOAD funct3 110");
+        check_illegal_safe(`Opcode_LOAD, 3'b111, 7'b101_0101,
+                           "reserved LOAD funct3 111");
+
+        check_illegal_safe(`Opcode_STORE, 3'b011, 7'b101_0101,
+                           "reserved STORE funct3 011");
+        check_illegal_safe(`Opcode_STORE, 3'b100, 7'b101_0101,
+                           "reserved STORE funct3 100");
+        check_illegal_safe(`Opcode_STORE, 3'b101, 7'b101_0101,
+                           "reserved STORE funct3 101");
+        check_illegal_safe(`Opcode_STORE, 3'b110, 7'b101_0101,
+                           "reserved STORE funct3 110");
+        check_illegal_safe(`Opcode_STORE, 3'b111, 7'b101_0101,
+                           "reserved STORE funct3 111");
+
         check_source_usage(`Opcode_I, `F_ADDI, 7'b101_0101,
                            1'b1, 1'b0, "I-type uses rs1 only");
         check_source_usage(`Opcode_R_M, `F_ADD_SUB, `F7_ADD,

@@ -291,6 +291,27 @@ run_load_hazard_test() {
     tb/tb_CPU_Load_Hazard.sv
 }
 
+run_illegal_test() {
+  run_test tb_CPU_Illegal \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
+    rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
+    tb/tb_CPU_Illegal.sv
+}
+
 test_name="${1:-all}"
 
 case "${test_name}" in
@@ -365,6 +386,11 @@ case "${test_name}" in
     echo "Waveform: ${build_dir}/cpu_load_hazard.vcd"
     ;;
 
+  illegal)
+    run_illegal_test
+    echo "Waveform: ${build_dir}/cpu_illegal.vcd"
+    ;;
+
   branch)
     run_branch_test
     echo "Waveform: ${build_dir}/cpu_branch.vcd"
@@ -408,6 +434,7 @@ case "${test_name}" in
     run_store_test
     run_load_test
     run_load_hazard_test
+    run_illegal_test
     run_hazard_test
     run_cpu_test
     run_branch_test
@@ -418,7 +445,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|store|load|loadhazard|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|store|load|loadhazard|illegal|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac
