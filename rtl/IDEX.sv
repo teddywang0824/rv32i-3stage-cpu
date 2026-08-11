@@ -10,6 +10,7 @@ module IDEX (
     input logic [31:0] imm_, 
     input logic [31:0] rs1_value_, 
     input logic [31:0] rs2_value_,
+    input logic [31:0] inst_,
 
     // pass by control unit
     input logic reg_write_,
@@ -33,6 +34,7 @@ module IDEX (
     output logic [31:0] imm_r,
     output logic [31:0] rs1_value_r,
     output logic [31:0] rs2_value_r,
+    output logic [31:0] idex_inst_r,
 
     output logic reg_write_r,
     output logic [3:0] alu_op_r,
@@ -57,6 +59,7 @@ module IDEX (
             imm_r       <= 32'd0;
             rs1_value_r <= 32'd0;
             rs2_value_r <= 32'd0;
+            idex_inst_r <= 32'd0;
 
             reg_write_r <= 1'b0;
             operand_b_sel_r <= 2'b0;
@@ -81,6 +84,7 @@ module IDEX (
             imm_r       <= 32'd0;
             rs1_value_r <= 32'd0;
             rs2_value_r <= 32'd0;
+            idex_inst_r <= 32'd0;
 
             reg_write_r <= 1'b0;
             operand_b_sel_r <= 2'b0;
@@ -104,6 +108,7 @@ module IDEX (
             imm_r       <= imm_;
             rs1_value_r <= rs1_value_;
             rs2_value_r <= rs2_value_;
+            idex_inst_r <= inst_;
 
             reg_write_r <= reg_write_;
             operand_b_sel_r <= operand_b_sel_;

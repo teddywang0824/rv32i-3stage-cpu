@@ -10,11 +10,13 @@ module tb_IDEX;
     logic [31:0] imm_;
     logic [31:0] rs1_value_;
     logic [31:0] rs2_value_;
+    logic [31:0] inst_;
 
     logic [4:0]  addr_rd_r;
     logic [31:0] imm_r;
     logic [31:0] rs1_value_r;
     logic [31:0] rs2_value_r;
+    logic [31:0] idex_inst_r;
 
     logic reg_write_;
     logic [1:0] operand_b_sel_;
@@ -52,10 +54,12 @@ module tb_IDEX;
         .imm_         (imm_),
         .rs1_value_   (rs1_value_),
         .rs2_value_   (rs2_value_),
+        .inst_        (inst_),
         .addr_rd_r    (addr_rd_r),
         .imm_r        (imm_r),
         .rs1_value_r  (rs1_value_r),
         .rs2_value_r  (rs2_value_r),
+        .idex_inst_r  (idex_inst_r),
 
         .reg_write_(reg_write_),
         .operand_b_sel_(operand_b_sel_),
@@ -97,6 +101,7 @@ module tb_IDEX;
         input logic [31:0] expected_imm,
         input logic [31:0] expected_rs1,
         input logic [31:0] expected_rs2,
+        input logic [31:0] expected_inst,
         input logic        expected_reg_write,
         input logic [1:0]  expected_operand_b_sel,
         input logic [1:0]  expected_operand_a_sel,
@@ -135,6 +140,12 @@ module tb_IDEX;
                 $fatal(1,
                     "[FAIL] %s rs2: expected=%08h actual=%08h",
                     test_name, expected_rs2, rs2_value_r
+                );
+
+            if (idex_inst_r !== expected_inst)
+                $fatal(1,
+                    "[FAIL] %s instruction: expected=%08h actual=%08h",
+                    test_name, expected_inst, idex_inst_r
                 );
 
             if (reg_write_r !== expected_reg_write)
@@ -215,6 +226,7 @@ module tb_IDEX;
         imm_        = 32'hDEAD_BEEF;
         rs1_value_  = 32'h1111_1111;
         rs2_value_  = 32'h2222_2222;
+        inst_       = 32'hFFFF_FFFF;
         reg_write_  = 1'b1;
         operand_b_sel_ = `OP_B_FOUR;
         operand_a_sel_ = `OP_A_PC;
@@ -232,7 +244,7 @@ module tb_IDEX;
         // Reset 在上升緣將所有輸出清為 0。
         @(posedge clk);
         #1;
-        check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
+        check_outputs(5'd0, 32'd0, 32'd0, 32'd0, 32'd0,
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
@@ -245,6 +257,7 @@ module tb_IDEX;
         imm_       = 32'hFFFF_FFFB;
         rs1_value_ = 32'h1234_5678;
         rs2_value_ = 32'hCAFE_BABE;
+        inst_      = 32'h0081_05B3;
         reg_write_   = 1'b1;
         operand_b_sel_ = `OP_B_FOUR;
         operand_a_sel_ = `OP_A_PC;
@@ -262,7 +275,7 @@ module tb_IDEX;
         @(posedge clk);
         #1;
         check_outputs(5'd7, 32'hFFFF_FFFB,
-                      32'h1234_5678, 32'hCAFE_BABE,
+                      32'h1234_5678, 32'hCAFE_BABE, 32'h0081_05B3,
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       1'b1, `F3_JAL, 1'b1,
                       1'b1, 1'b1, `F3_SW, `F3_LW,
@@ -274,6 +287,7 @@ module tb_IDEX;
         imm_       = 32'h0000_07FF;
         rs1_value_ = 32'hAAAA_AAAA;
         rs2_value_ = 32'h5555_5555;
+        inst_      = 32'h00C0_0633;
         reg_write_   = 1'b0;
         operand_b_sel_ = `OP_B_RS2;
         operand_a_sel_ = `OP_A_ZERO;
@@ -289,7 +303,7 @@ module tb_IDEX;
         load_op_     = `F3_LB;
         #1;
         check_outputs(5'd7, 32'hFFFF_FFFB,
-                      32'h1234_5678, 32'hCAFE_BABE,
+                      32'h1234_5678, 32'hCAFE_BABE, 32'h0081_05B3,
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       1'b1, `F3_JAL, 1'b1,
                       1'b1, 1'b1, `F3_SW, `F3_LW,
@@ -299,7 +313,7 @@ module tb_IDEX;
         @(posedge clk);
         #1;
         check_outputs(5'd12, 32'h0000_07FF,
-                      32'hAAAA_AAAA, 32'h5555_5555,
+                      32'hAAAA_AAAA, 32'h5555_5555, 32'h00C0_0633,
                       1'b0, `OP_B_RS2, `OP_A_ZERO, `ALUOP_SUB, 1'b0, 32'h0000_0104,
                       1'b0, `F3_BGEU, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, `F3_LB,
@@ -312,6 +326,7 @@ module tb_IDEX;
         imm_        = 32'h0102_0304;
         rs1_value_  = 32'hABCD_EF01;
         rs2_value_  = 32'h1020_3040;
+        inst_       = 32'hDEAD_BEEF;
         reg_write_   = 1'b1;
         operand_b_sel_ = `OP_B_FOUR;
         operand_a_sel_ = `OP_A_PC;
@@ -328,7 +343,7 @@ module tb_IDEX;
 
         @(posedge clk);
         #1;
-        check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
+        check_outputs(5'd0, 32'd0, 32'd0, 32'd0, 32'd0,
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
@@ -341,6 +356,7 @@ module tb_IDEX;
         imm_        = 32'h0000_002A;
         rs1_value_  = 32'h0BAD_F00D;
         rs2_value_  = 32'h1357_2468;
+        inst_       = 32'h02A0_0493;
         reg_write_   = 1'b1;
         operand_b_sel_ = `OP_B_FOUR;
         operand_a_sel_ = `OP_A_PC;
@@ -358,7 +374,7 @@ module tb_IDEX;
         @(posedge clk);
         #1;
         check_outputs(5'd9, 32'h0000_002A,
-                      32'h0BAD_F00D, 32'h1357_2468,
+                      32'h0BAD_F00D, 32'h1357_2468, 32'h02A0_0493,
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0300,
                       1'b1, `F3_JAL, 1'b1,
                       1'b1, 1'b1, `F3_SH, `F3_LBU,
@@ -371,6 +387,7 @@ module tb_IDEX;
         imm_        = 32'hFFFF_FFFF;
         rs1_value_  = 32'hDEAD_BEEF;
         rs2_value_  = 32'hCAFE_BABE;
+        inst_       = 32'hFFFF_FFFF;
         reg_write_   = 1'b1;
         operand_b_sel_ = `OP_B_FOUR;
         operand_a_sel_ = `OP_A_ZERO;
@@ -387,7 +404,7 @@ module tb_IDEX;
 
         @(posedge clk);
         #1;
-        check_outputs(5'd0, 32'd0, 32'd0, 32'd0,
+        check_outputs(5'd0, 32'd0, 32'd0, 32'd0, 32'd0,
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, 3'd0,

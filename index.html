@@ -224,8 +224,8 @@
             <tr><td><code>IFID.sv</code></td><td>模組本身的 capture、stall 與 flush 單元測試仍保留；CPU Top 已由 Program ROM response register 直接形成 IF/ID 邊界</td><td><span class="status ready">已驗證但未實例化</span></td><td>若未來換成不同延遲的 instruction memory，再評估是否恢復獨立 fetch queue/register</td></tr>
             <tr><td><code>Inst_Decoder.sv</code></td><td>欄位拆解與 I/S/B/U/J immediate；正負值與 opcode 單元測試通過</td><td><span class="status ready">已驗證</span></td><td>隨後續指令擴充欄位與合法性檢查</td></tr>
             <tr><td><code>Reg_File.sv</code></td><td>雙讀單寫、x0 固定為 0；ALU、jump、Load writeback 與 load-use stall 後寫回通過</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
-            <tr><td><code>IDEX.sv</code></td><td>同步保存資料、operand selectors、PC、control-flow 與 Load/Store controls；支援 load-use bubble</td><td><span class="status ready">已驗證</span></td><td>持續保留 stall/flush 交互回歸</td></tr>
-            <tr><td><code>EXWB.sv</code></td><td>保存 ALU result、rd、RegWrite、memory metadata 與 Load operation；已配合 load-use forwarding/stall</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
+            <tr><td><code>IDEX.sv</code></td><td>同步保存資料、operand selectors、PC、原始 instruction、control-flow 與 Load/Store controls；支援 load-use bubble</td><td><span class="status ready">已驗證</span></td><td>持續保留 stall/flush 與退休 metadata 對齊回歸</td></tr>
+            <tr><td><code>EXWB.sv</code></td><td>保存 ALU result、PC、instruction、rd、RegWrite、Load metadata 與實際 Store commit 資訊，形成統一退休觀察點</td><td><span class="status ready">已驗證</span></td><td>持續保留相鄰指令 metadata 隔離測試</td></tr>
             <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，並用於 Load/Store effective address 計算</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>Branch_Unit.sv</code></td><td>六種 branch 比較、PC-relative target 與 branch enable 保護</td><td><span class="status ready">已驗證</span></td><td>之後與 jump 共用 redirect/flush 仲裁</td></tr>
             <tr><td><code>Data_Memory.sv</code></td><td>固定 4 KiB（1024×32）、同步讀寫、read valid 與 4-bit byte enable；Load/Store path 已接入</td><td><span class="status ready">已驗證</span></td><td>之後抽換 SRAM wrapper 時維持相同時序契約</td></tr>
@@ -235,7 +235,7 @@
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX/WB→ID rs1/rs2 bypass；Load address 不會在 EX 被誤當成結果 forwarding，並已整合 load-use 精確 stall</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>Hazard_Unit.sv</code></td><td>比較 EX Load 的 rd 與 ID 指令真正使用的 rs1/rs2；排除 x0 與未使用來源，真相依時精確 stall 一個 cycle</td><td><span class="status ready">已驗證</span></td><td>之後可延伸支援可變延遲 memory</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Top.sv</code></td><td>四級 I/R/U/branch/jump/Load/Store 資料路徑、同步 instruction/data response、writeback mux、forwarding、fetch kill、ID/EX bubble、load-use stall 與非法指令安全 NOP</td><td><span class="status ready">已驗證</span></td><td>下一步建立退休指令紀錄與參考比對</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>四級 I/R/U/branch/jump/Load/Store 資料路徑、同步 instruction/data response、forwarding、stall/flush，以及 PC/instruction/register/memory side-effect 退休介面</td><td><span class="status ready">已驗證</span></td><td>下一步整理 README、架構圖與已知限制</td></tr>
             <tr><td><code>tb_CPU_Top.sv</code></td><td>自行載入 I/R/U-type 程式；檢查 x0～x25 architectural state、forwarding 與非零 PC AUIPC</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
             <tr><td><code>tb_CPU_Branch.sv</code></td><td>六種 branch 的 taken/not-taken 與前後跳，共 24 情境；每次 redirect 另驗 PC target、response kill、payload 配對及 ID/EX bubble</td><td><span class="status ready">自動驗證</span></td><td>load-use 與 branch 的交互測試已另行補齊</td></tr>
             <tr><td><code>tb_CPU_JAL.sv</code></td><td>JAL 正負位移、PC+4 回寫與 rd=x0；逐次驗證 redirect 後 response kill 與 ID/EX bubble</td><td><span class="status ready">自動驗證</span></td><td>控制流程回歸持續保留</td></tr>
@@ -245,6 +245,7 @@
             <tr><td><code>tb_CPU_Load_Hazard.sv</code></td><td>涵蓋 Load→ALU、R-type 雙來源、Store 位址/資料、Branch、JALR、假相依與間隔一指令，共 7 類整合情境</td><td><span class="status ready">自動驗證</span></td><td>作為 load-use hazard 的整合回歸測試</td></tr>
             <tr><td><code>tb_CPU_Illegal.sv</code></td><td>注入 7 類非法編碼，確認皆到達 ID 且不寫 register/memory、不 redirect，後續合法 ADDI 與 SW 仍執行</td><td><span class="status ready">自動驗證</span></td><td>作為非法指令安全行為的整合回歸測試</td></tr>
             <tr><td><code>tb_CPU_Program.sv</code></td><td>執行四元素 array sum；38 cycles 內得到 13，並核對 4 Loads、4 stalls、4 次 BNE（3 taken）與一次結果 Store</td><td><span class="status ready">自動驗證</span></td><td>之後可擴充更多編譯程式映像</td></tr>
+            <tr><td><code>tb_CPU_Retire.sv</code></td><td>將 14 筆 ordered retire event 與 golden trace 逐條比對；涵蓋 ALU、Load/Store、Branch、JAL/JALR、U-type、wrong-path、非法與 misaligned 指令</td><td><span class="status ready">自動驗證</span></td><td>未來可將固定 golden trace 升級為 Spike/QEMU 通用差分測試</td></tr>
             <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
           </tbody>
         </table>
@@ -540,12 +541,12 @@
           {
             id: "reference",
             title: "建立退休指令紀錄與參考比對",
-            summary: "讓 CPU 結果能與 RISC-V 模型逐條核對。",
-            goal: "每條有效指令輸出 PC、instruction、rd、write data、memory side effect。",
-            files: "CPU_Top.sv、testbench、可選的比對腳本。",
-            work: ["valid/retire 概念", "trace log", "與 Spike/QEMU 或自製模型比對"],
-            verify: "混合指令測試的 architectural state 與參考模型一致。",
-            caution: "比較 architectural state，不要要求不同微架構每一個 cycle 的內部訊號相同。"
+            summary: "讓 CPU 的 architectural effects 能與 golden trace 逐條核對。",
+            goal: "每條退休指令輸出 PC、instruction、rd write 與 memory write side effect；bubble、wrong-path 與非法指令不得產生事件。",
+            files: "CPU_Top.sv、IDEX.sv、EXWB.sv、tb_CPU_Retire.sv 與 run_tests.sh。",
+            work: ["valid/retire 概念", "PC 與 instruction pipeline metadata", "register/memory side-effect trace", "ordered golden trace 比對"],
+            verify: "14 筆混合指令退休事件逐條吻合；wrong-path 與非法指令不退休，misaligned Load/Store 不回報副作用，完整回歸通過。",
+            caution: "目前是固定測試程式的 golden trace，不是可執行任意程式的 Spike/QEMU 通用差分平台。"
           },
           {
             id: "documentation",
@@ -585,7 +586,8 @@
       "load-hazard",
       "illegal",
       "program-test",
-      "sync-imem"
+      "sync-imem",
+      "reference"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();

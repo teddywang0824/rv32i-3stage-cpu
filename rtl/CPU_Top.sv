@@ -2,7 +2,18 @@
 
 module CPU_Top (
     input logic clk,
-    input logic rst
+    input logic rst,
+
+    output logic        retire_valid,
+    output logic [31:0] retire_pc,
+    output logic [31:0] retire_inst,
+    output logic        retire_rd_write,
+    output logic [4:0]  retire_rd,
+    output logic [31:0] retire_rd_data,
+    output logic        retire_mem_write,
+    output logic [31:0] retire_mem_addr,
+    output logic [31:0] retire_mem_data,
+    output logic [3:0]  retire_mem_byte_enable
 );
 
 // ------------------------------------------------------------
@@ -86,6 +97,7 @@ logic keepgoing;
 logic bubble_IDEX;
 
 logic [31:0] idex_pc_r;
+logic [31:0] idex_inst_r;
 
 logic branch_en_r;
 logic [2:0] branch_op_r;
@@ -118,6 +130,11 @@ logic        exwb_mem_write_r;
 logic [2:0]  exwb_load_op_r;
 logic        ex_forward_en;
 logic [31:0] alu_result_r;
+logic [31:0] exwb_pc_r;
+logic [31:0] exwb_inst_r;
+logic        exwb_store_commit_r;
+logic [31:0] exwb_store_data_r;
+logic [3:0]  exwb_store_byte_enable_r;
 
 // Load Unit
 logic [31:0] load_value;
@@ -174,6 +191,20 @@ end
 assign check = mem_en_r && !misaligned;
 
 assign rd_value_ = (exwb_mem_en_r && !exwb_mem_write_r) ? load_value : alu_result_r;
+
+// A retire event describes the instruction whose architectural effects commit
+// at the current write-back edge.  Consumers should sample these signals on
+// the rising edge, before EX/WB advances to the following instruction.
+assign retire_valid           = exwb_valid_inst_r;
+assign retire_pc              = exwb_pc_r;
+assign retire_inst            = exwb_inst_r;
+assign retire_rd_write        = write_regf_en_r && (addr_rd_r != 5'd0);
+assign retire_rd              = addr_rd_r;
+assign retire_rd_data         = rd_value_;
+assign retire_mem_write       = exwb_store_commit_r;
+assign retire_mem_addr        = alu_result_r;
+assign retire_mem_data        = exwb_store_data_r;
+assign retire_mem_byte_enable = exwb_store_byte_enable_r;
 
 // ------------------------------------------------------------
 // Controller
@@ -274,10 +305,12 @@ IDEX u_IDEX (
     .imm_         (imm_),
     .rs1_value_   (forwarded_rs1_value),
     .rs2_value_   (forwarded_rs2_value),
+    .inst_        (fetch_response_inst),
     .addr_rd_r    (idex_addr_rd_r),
     .imm_r        (imm_r),
     .rs1_value_r  (rs1_value_r),
     .rs2_value_r  (rs2_value_r),
+    .idex_inst_r  (idex_inst_r),
 
     .reg_write_(reg_write_),
     .operand_b_sel_(operand_b_sel_),
@@ -366,17 +399,27 @@ EXWB u_EXWB (
     .addr_rd_(idex_addr_rd_r),
     .reg_write_(idex_reg_write_r),
     .valid_inst_(idex_valid_inst_r),
+    .pc_(idex_pc_r),
+    .inst_(idex_inst_r),
     .mem_en_(mem_en_r),
     .mem_write_(mem_write_r),
     .load_op_(idex_load_op_r),
+    .store_commit_(idex_valid_inst_r && check && mem_write_r),
+    .store_data_(aligned_write_data),
+    .store_byte_enable_(byte_enable),
 
     .alu_result_r(alu_result_r),
     .addr_rd_r(addr_rd_r),
     .reg_write_r(exwb_reg_write_r),
     .valid_inst_r(exwb_valid_inst_r),
+    .pc_r(exwb_pc_r),
+    .inst_r(exwb_inst_r),
     .mem_en_r(exwb_mem_en_r),
     .mem_write_r(exwb_mem_write_r),
-    .load_op_r(exwb_load_op_r)
+    .load_op_r(exwb_load_op_r),
+    .store_commit_r(exwb_store_commit_r),
+    .store_data_r(exwb_store_data_r),
+    .store_byte_enable_r(exwb_store_byte_enable_r)
 );
 
 Branch_Unit u_Branch_Unit (
