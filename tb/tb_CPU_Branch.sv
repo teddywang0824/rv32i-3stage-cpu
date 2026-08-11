@@ -1,27 +1,15 @@
 `timescale 1ns / 100ps
 `include "defines.sv"
 
-// Step 14 專用 ROM。
-// run_tests.sh 的 branch 測試不編譯 rtl/Program_ROM.sv，而使用這個可由
-// testbench 重新載入的 ROM，讓每個 branch 案例都能從 PC=0 獨立開始。
-module Program_ROM (
-    input  logic [31:0] rom_addr,
-    output logic [31:0] rom_data
-);
-    logic [31:0] memory [0:63];
-
-    always_comb begin
-        if (rom_addr[31:8] == 24'd0)
-            rom_data = memory[rom_addr[7:2]];
-        else
-            rom_data = `I_NOP;
-    end
-endmodule
-
 module tb_CPU_Branch;
 
     logic clk;
     logic rst;
+    logic check_redirect_edge;
+    logic [31:0] expected_redirect_target;
+    logic [31:0] killed_response_pc;
+    logic [31:0] killed_response_inst;
+    integer redirect_check_count;
 
     CPU_Top u_CPU_Top (
         .clk(clk),
@@ -36,6 +24,41 @@ module tb_CPU_Branch;
     initial begin
         $dumpfile("build/cpu_branch.vcd");
         $dumpvars(0, tb_CPU_Branch);
+    end
+
+    // Snapshot a taken redirect before the active edge.  The synchronous
+    // instruction response must be invalidated at that edge while its stale
+    // payload remains unchanged and ID/EX receives a bubble.
+    always @(negedge clk) begin
+        check_redirect_edge = !rst && u_CPU_Top.branch_taken;
+        if (check_redirect_edge) begin
+            if (u_CPU_Top.fetch_response_valid !== 1'b1)
+                $fatal(1, "[FAIL] taken Branch has no valid younger response to kill");
+
+            expected_redirect_target = u_CPU_Top.branch_target;
+            killed_response_pc = u_CPU_Top.fetch_response_pc;
+            killed_response_inst = u_CPU_Top.fetch_response_inst;
+        end
+    end
+
+    always @(posedge clk) begin
+        #1;
+        if (check_redirect_edge) begin
+            if (u_CPU_Top.pc !== expected_redirect_target)
+                $fatal(1,
+                    "[FAIL] redirect PC: expected=0x%08h actual=0x%08h",
+                    expected_redirect_target, u_CPU_Top.pc
+                );
+            if (u_CPU_Top.fetch_response_valid !== 1'b0)
+                $fatal(1, "[FAIL] taken Branch did not invalidate fetch response");
+            if (u_CPU_Top.fetch_response_pc !== killed_response_pc ||
+                u_CPU_Top.fetch_response_inst !== killed_response_inst)
+                $fatal(1, "[FAIL] kill_response unexpectedly changed response payload");
+            if (u_CPU_Top.idex_valid_inst_r !== 1'b0)
+                $fatal(1, "[FAIL] taken Branch did not insert ID/EX bubble");
+
+            redirect_check_count = redirect_check_count + 1;
+        end
     end
 
     function automatic logic [31:0] encode_addi(
@@ -223,6 +246,8 @@ module tb_CPU_Branch;
 
     initial begin
         rst = 1'b1;
+        check_redirect_edge = 1'b0;
+        redirect_check_count = 0;
         clear_rom();
 
         // 先用兩個已知 machine code 保護 testbench 自己的 B-immediate 排列。
@@ -249,7 +274,14 @@ module tb_CPU_Branch;
         run_four_directions(3'b111,
             32'hFFFF_FFFF, 32'd1, 32'd1, 32'hFFFF_FFFF, "BGEU");
 
-        $display("[PASS] tb_CPU_Branch completed: 24 branch scenarios.");
+        if (redirect_check_count < 12)
+            $fatal(1,
+                "[FAIL] expected at least 12 taken redirect edge checks, observed %0d",
+                redirect_check_count
+            );
+
+        $display("[PASS] tb_CPU_Branch completed: 24 branch scenarios, %0d redirect edge checks.",
+                 redirect_check_count);
         $finish;
     end
 

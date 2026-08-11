@@ -55,6 +55,12 @@ run_inst_decoder_test() {
     tb/tb_Inst_Decoder.sv
 }
 
+run_program_rom_test() {
+  run_test tb_Program_ROM \
+    rtl/Program_ROM.sv \
+    tb/tb_Program_ROM.sv
+}
+
 run_ifid_test() {
   run_test tb_IFID \
     rtl/IFID.sv \
@@ -174,6 +180,7 @@ run_branch_test() {
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
     rtl/PC.sv \
+    rtl/Program_ROM.sv \
     rtl/Reg_File.sv \
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
@@ -195,6 +202,7 @@ run_jal_test() {
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
     rtl/PC.sv \
+    rtl/Program_ROM.sv \
     rtl/Reg_File.sv \
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
@@ -216,6 +224,7 @@ run_jalr_test() {
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
     rtl/PC.sv \
+    rtl/Program_ROM.sv \
     rtl/Reg_File.sv \
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
@@ -237,6 +246,7 @@ run_store_test() {
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
     rtl/PC.sv \
+    rtl/Program_ROM.sv \
     rtl/Reg_File.sv \
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
@@ -258,6 +268,7 @@ run_load_test() {
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
     rtl/PC.sv \
+    rtl/Program_ROM.sv \
     rtl/Reg_File.sv \
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
@@ -279,6 +290,7 @@ run_load_hazard_test() {
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
     rtl/PC.sv \
+    rtl/Program_ROM.sv \
     rtl/Reg_File.sv \
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
@@ -300,6 +312,7 @@ run_illegal_test() {
     rtl/IFID.sv \
     rtl/Inst_Decoder.sv \
     rtl/PC.sv \
+    rtl/Program_ROM.sv \
     rtl/Reg_File.sv \
     rtl/Control_Unit.sv \
     rtl/ALU.sv \
@@ -310,6 +323,28 @@ run_illegal_test() {
     rtl/Data_Memory.sv \
     rtl/Load_Unit.sv \
     tb/tb_CPU_Illegal.sv
+}
+
+run_program_test() {
+  run_test tb_CPU_Program \
+    rtl/Controller.sv \
+    rtl/CPU_Top.sv \
+    rtl/EXWB.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Program_ROM.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv\
+    rtl/Hazard_Unit.sv \
+    rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
+    tb/tb_CPU_Program.sv
 }
 
 test_name="${1:-all}"
@@ -325,6 +360,10 @@ case "${test_name}" in
 
   instdecoder)
     run_inst_decoder_test
+    ;;
+
+  programrom)
+    run_program_rom_test
     ;;
   
   ifid)
@@ -391,6 +430,11 @@ case "${test_name}" in
     echo "Waveform: ${build_dir}/cpu_illegal.vcd"
     ;;
 
+  program)
+    run_program_test
+    echo "Waveform: ${build_dir}/cpu_program.vcd"
+    ;;
+
   branch)
     run_branch_test
     echo "Waveform: ${build_dir}/cpu_branch.vcd"
@@ -420,6 +464,7 @@ case "${test_name}" in
     run_pc_test
     run_reg_test
     run_inst_decoder_test
+    run_program_rom_test
     run_ifid_test
     run_idex_test
     run_exwb_test
@@ -435,6 +480,7 @@ case "${test_name}" in
     run_load_test
     run_load_hazard_test
     run_illegal_test
+    run_program_test
     run_hazard_test
     run_cpu_test
     run_branch_test
@@ -445,7 +491,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|store|load|loadhazard|illegal|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|store|load|loadhazard|illegal|program|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

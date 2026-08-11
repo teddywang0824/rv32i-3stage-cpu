@@ -194,11 +194,11 @@
       <div class="section-head">
         <div>
           <h2>目標架構</h2>
-          <p class="section-intro">同步 Data Memory 需要一個 clock 回傳資料，因此將位址計算與記憶體回應／寫回分成兩級。</p>
+          <p class="section-intro">同步 Instruction Memory 的 response register 形成取指與解碼邊界；同步 Data Memory 則將位址計算與記憶體回應／寫回分成兩級。</p>
         </div>
       </div>
       <div class="panel pipeline">
-        <div class="stage if"><b>IF · 取指</b><small>PC → Program ROM<br>保存 PC 與 instruction 至 IF/ID</small></div>
+        <div class="stage if"><b>IF · 取指</b><small>PC → 同步 Program ROM<br>response valid、PC 與 instruction 成組保存</small></div>
         <div class="arrow">→</div>
         <div class="stage id"><b>ID · 解碼</b><small>拆解指令、讀 Register File、產生 immediate 與控制訊號</small></div>
         <div class="arrow">→</div>
@@ -220,8 +220,8 @@
           <thead><tr><th>檔案／模組</th><th>目前內容</th><th>判定</th><th>接下來要補</th></tr></thead>
           <tbody>
             <tr><td><code>PC.sv</code></td><td>reset、stall hold 與 branch/JAL/JALR target 選路</td><td><span class="status ready">已驗證</span></td><td>已整合 load-use hazard 的 PC hold</td></tr>
-            <tr><td><code>Program_ROM.sv</code></td><td>I/R-type 與連續 RAW 相依測試程式</td><td><span class="status ready">已驗證</span></td><td>之後改良程式映像載入方式</td></tr>
-            <tr><td><code>IFID.sv</code></td><td>同步保存 instruction 與其 PC，支援 branch/jump flush 與 stall hold</td><td><span class="status ready">已驗證</span></td><td>已驗證 load-use stall 與 branch flush 的交互行為</td></tr>
+            <tr><td><code>Program_ROM.sv</code></td><td>64-word、單 cycle 同步 response；PC、instruction 與 valid 成組保存，支援 stall hold、reset/kill invalidation 且 kill 優先</td><td><span class="status ready">已驗證</span></td><td>之後可改用 readmemh、外部程式映像或 SRAM wrapper</td></tr>
+            <tr><td><code>IFID.sv</code></td><td>模組本身的 capture、stall 與 flush 單元測試仍保留；CPU Top 已由 Program ROM response register 直接形成 IF/ID 邊界</td><td><span class="status ready">已驗證但未實例化</span></td><td>若未來換成不同延遲的 instruction memory，再評估是否恢復獨立 fetch queue/register</td></tr>
             <tr><td><code>Inst_Decoder.sv</code></td><td>欄位拆解與 I/S/B/U/J immediate；正負值與 opcode 單元測試通過</td><td><span class="status ready">已驗證</span></td><td>隨後續指令擴充欄位與合法性檢查</td></tr>
             <tr><td><code>Reg_File.sv</code></td><td>雙讀單寫、x0 固定為 0；ALU、jump、Load writeback 與 load-use stall 後寫回通過</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>IDEX.sv</code></td><td>同步保存資料、operand selectors、PC、control-flow 與 Load/Store controls；支援 load-use bubble</td><td><span class="status ready">已驗證</span></td><td>持續保留 stall/flush 交互回歸</td></tr>
@@ -235,15 +235,16 @@
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX/WB→ID rs1/rs2 bypass；Load address 不會在 EX 被誤當成結果 forwarding，並已整合 load-use 精確 stall</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>Hazard_Unit.sv</code></td><td>比較 EX Load 的 rd 與 ID 指令真正使用的 rs1/rs2；排除 x0 與未使用來源，真相依時精確 stall 一個 cycle</td><td><span class="status ready">已驗證</span></td><td>之後可延伸支援可變延遲 memory</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Top.sv</code></td><td>四級 I/R/U/branch/jump/Load/Store 資料路徑、同步 memory response、writeback mux、forwarding、雙級 flush、load-use stall 與非法指令安全 NOP</td><td><span class="status ready">已驗證</span></td><td>下一步執行整合小程式</td></tr>
-            <tr><td><code>tb_CPU_Top.sv</code></td><td>x0～x25 architectural state、forwarding 與非零 PC AUIPC 自動檢查</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
-            <tr><td><code>tb_CPU_Branch.sv</code></td><td>六種 branch 的 taken/not-taken、前後跳與雙級 flush，共 24 情境</td><td><span class="status ready">自動驗證</span></td><td>load-use 與 branch 的交互測試已另行補齊</td></tr>
-            <tr><td><code>tb_CPU_JAL.sv</code></td><td>JAL 正負位移、PC+4 回寫、rd=x0 與雙級 flush</td><td><span class="status ready">自動驗證</span></td><td>控制流程回歸持續保留</td></tr>
-            <tr><td><code>tb_CPU_JALR.sv</code></td><td>rs1+imm target、bit 0 清除、forwarding、負立即數、rd=x0 與非法 funct3</td><td><span class="status ready">自動驗證</span></td><td>之後補函式呼叫與 memory 的交互測試</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>四級 I/R/U/branch/jump/Load/Store 資料路徑、同步 instruction/data response、writeback mux、forwarding、fetch kill、ID/EX bubble、load-use stall 與非法指令安全 NOP</td><td><span class="status ready">已驗證</span></td><td>下一步建立退休指令紀錄與參考比對</td></tr>
+            <tr><td><code>tb_CPU_Top.sv</code></td><td>自行載入 I/R/U-type 程式；檢查 x0～x25 architectural state、forwarding 與非零 PC AUIPC</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
+            <tr><td><code>tb_CPU_Branch.sv</code></td><td>六種 branch 的 taken/not-taken 與前後跳，共 24 情境；每次 redirect 另驗 PC target、response kill、payload 配對及 ID/EX bubble</td><td><span class="status ready">自動驗證</span></td><td>load-use 與 branch 的交互測試已另行補齊</td></tr>
+            <tr><td><code>tb_CPU_JAL.sv</code></td><td>JAL 正負位移、PC+4 回寫與 rd=x0；逐次驗證 redirect 後 response kill 與 ID/EX bubble</td><td><span class="status ready">自動驗證</span></td><td>控制流程回歸持續保留</td></tr>
+            <tr><td><code>tb_CPU_JALR.sv</code></td><td>rs1+imm target、bit 0 清除、forwarding、負立即數、rd=x0 與非法 funct3；逐次驗證 redirect 邊界</td><td><span class="status ready">自動驗證</span></td><td>之後補函式呼叫與 memory 的交互測試</td></tr>
             <tr><td><code>tb_CPU_Store.sv</code></td><td>SB/SH/SW offsets、負 S-immediate、rs1/rs2 forwarding、misalignment 與 wrong-path flush</td><td><span class="status ready">自動驗證</span></td><td>下一步加入 Load/Store 交互測試</td></tr>
             <tr><td><code>tb_CPU_Load.sv</code></td><td>五種 Load、signed/unsigned extension、連續 request、負立即數、base forwarding、misalignment、flush 與非法編碼</td><td><span class="status ready">自動驗證</span></td><td>load-use 緊鄰相依測試已另行補齊</td></tr>
             <tr><td><code>tb_CPU_Load_Hazard.sv</code></td><td>涵蓋 Load→ALU、R-type 雙來源、Store 位址/資料、Branch、JALR、假相依與間隔一指令，共 7 類整合情境</td><td><span class="status ready">自動驗證</span></td><td>作為 load-use hazard 的整合回歸測試</td></tr>
             <tr><td><code>tb_CPU_Illegal.sv</code></td><td>注入 7 類非法編碼，確認皆到達 ID 且不寫 register/memory、不 redirect，後續合法 ADDI 與 SW 仍執行</td><td><span class="status ready">自動驗證</span></td><td>作為非法指令安全行為的整合回歸測試</td></tr>
+            <tr><td><code>tb_CPU_Program.sv</code></td><td>執行四元素 array sum；38 cycles 內得到 13，並核對 4 Loads、4 stalls、4 次 BNE（3 taken）與一次結果 Store</td><td><span class="status ready">自動驗證</span></td><td>之後可擴充更多編譯程式映像</td></tr>
             <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
           </tbody>
         </table>
@@ -521,10 +522,20 @@
             title: "執行整合小程式",
             summary: "用迴圈與記憶體操作驗證各功能會一起工作。",
             goal: "執行至少一個陣列加總或 Fibonacci 程式。",
-            files: "程式映像、Program_ROM.sv 或載入機制、整合 testbench。",
+            files: "Program_ROM.sv、tb_CPU_Program.sv、tb_CPU_Top.sv、tb_Hazard_Observe.sv、run_tests.sh。",
             work: ["定義完成訊號或 sentinel", "限制最大 cycle 防止死迴圈", "檢查最後 register/memory"],
-            verify: "程式在 cycle 上限內結束，最終結果符合軟體計算。",
+            verify: "四元素 array sum 在 38 cycles 寫出 13；4 Loads、4 load-use stalls、4 次 BNE（3 taken）與一次結果 Store 全部符合預期。",
             caution: "整合測試失敗時，回到最小可重現的指令序列，不要只盯著長波形。"
+          },
+          {
+            id: "sync-imem",
+            title: "同步 Instruction Memory 與 fetch valid/flush",
+            summary: "將組合式取指改為具一個 cycle 回應延遲的同步介面。",
+            goal: "PC 發出 fetch request 後，以 response valid 將正確的 instruction 與 PC 送入 ID；Program ROM response register 直接形成 fetch/ID 邊界，redirect 或 flush 後的舊回應不得執行。",
+            files: "Program_ROM.sv、CPU_Top.sv、PC.sv、Program ROM 單元測試與 fetch/branch/jump/load-stall 整合測試。",
+            work: ["同步 read address", "instruction response valid", "保存 request PC", "stall 時序", "redirect 後丟棄舊 response", "reset/flush invalidation"],
+            verify: "順序取指、load-use stall、branch、JAL 與 JALR 均能在同步讀取延遲下執行；wrong-path instruction response 不得產生任何副作用，完整回歸通過。",
+            caution: "Instruction Memory 多一個 cycle 延遲後，PC、request PC、response valid 與 flush 必須視為同一份 fetch transaction；不能只把 ROM 改成 always_ff 而沿用原本組合式時序假設。"
           },
           {
             id: "reference",
@@ -572,7 +583,9 @@
       "stores",
       "loads",
       "load-hazard",
-      "illegal"
+      "illegal",
+      "program-test",
+      "sync-imem"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();

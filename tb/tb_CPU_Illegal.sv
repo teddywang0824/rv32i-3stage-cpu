@@ -1,21 +1,6 @@
 `timescale 1ns / 100ps
 `include "defines.sv"
 
-// Writable ROM used only by the illegal-instruction integration test.
-module Program_ROM (
-    input  logic [31:0] rom_addr,
-    output logic [31:0] rom_data
-);
-    logic [31:0] memory [0:63];
-
-    always_comb begin
-        if (rom_addr[31:8] == 24'd0)
-            rom_data = memory[rom_addr[7:2]];
-        else
-            rom_data = `I_NOP;
-    end
-endmodule
-
 module tb_CPU_Illegal;
 
     logic clk;
@@ -137,7 +122,8 @@ module tb_CPU_Illegal;
     always @(posedge clk) begin
         if (rst) begin
             seen_illegal <= 7'b0;
-        end else if (!u_CPU_Top.valid_inst_) begin
+        end else if (u_CPU_Top.fetch_response_valid &&
+                     !u_CPU_Top.valid_inst_) begin
             if (u_CPU_Top.reg_write_ !== 1'b0 ||
                 u_CPU_Top.mem_en !== 1'b0 ||
                 u_CPU_Top.mem_write !== 1'b0 ||
@@ -147,19 +133,19 @@ module tb_CPU_Illegal;
                 u_CPU_Top.id_uses_rs2 !== 1'b0)
                 $fatal(1, "[FAIL] illegal instruction has a side-effect control");
 
-            if (u_CPU_Top.inst_r === u_CPU_Top.u_Program_Rom.memory[1])
+            if (u_CPU_Top.fetch_response_inst === u_CPU_Top.u_Program_Rom.memory[1])
                 seen_illegal[0] <= 1'b1;
-            else if (u_CPU_Top.inst_r === u_CPU_Top.u_Program_Rom.memory[3])
+            else if (u_CPU_Top.fetch_response_inst === u_CPU_Top.u_Program_Rom.memory[3])
                 seen_illegal[1] <= 1'b1;
-            else if (u_CPU_Top.inst_r === u_CPU_Top.u_Program_Rom.memory[4])
+            else if (u_CPU_Top.fetch_response_inst === u_CPU_Top.u_Program_Rom.memory[4])
                 seen_illegal[2] <= 1'b1;
-            else if (u_CPU_Top.inst_r === u_CPU_Top.u_Program_Rom.memory[5])
+            else if (u_CPU_Top.fetch_response_inst === u_CPU_Top.u_Program_Rom.memory[5])
                 seen_illegal[3] <= 1'b1;
-            else if (u_CPU_Top.inst_r === u_CPU_Top.u_Program_Rom.memory[6])
+            else if (u_CPU_Top.fetch_response_inst === u_CPU_Top.u_Program_Rom.memory[6])
                 seen_illegal[4] <= 1'b1;
-            else if (u_CPU_Top.inst_r === u_CPU_Top.u_Program_Rom.memory[7])
+            else if (u_CPU_Top.fetch_response_inst === u_CPU_Top.u_Program_Rom.memory[7])
                 seen_illegal[5] <= 1'b1;
-            else if (u_CPU_Top.inst_r === u_CPU_Top.u_Program_Rom.memory[8])
+            else if (u_CPU_Top.fetch_response_inst === u_CPU_Top.u_Program_Rom.memory[8])
                 seen_illegal[6] <= 1'b1;
         end
 

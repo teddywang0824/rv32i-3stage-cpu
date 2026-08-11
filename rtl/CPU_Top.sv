@@ -17,10 +17,11 @@ logic rst_pc_;
 // PC / ROM signals
 logic [31:0] pc;
 logic [31:0] pc_next_;
-logic [31:0] inst_;
-
-// IF/ID signal
-logic [31:0] inst_r;
+logic        fetch_response_valid;
+logic [31:0] fetch_response_pc;
+logic [31:0] fetch_response_inst;
+logic        kill_fetch_response;
+logic        pc_write_en;
 
 // Decoder signals
 logic [6:0]  opcode_;
@@ -43,6 +44,7 @@ logic reg_write_;
 logic [1:0] operand_b_sel_; //operand b 是否選 imm
 logic [3:0] alu_op_;
 logic valid_inst_; // 是否有這指令
+logic id_valid_inst;
 
 logic [1:0] operand_a_sel_;
 
@@ -82,9 +84,7 @@ logic stall_; // 是否要暫停pc、ifid推進
 logic load_use_stall;
 logic keepgoing;
 logic bubble_IDEX;
-logic bubble_IFID;
 
-logic [31:0] ifid_pc_r;
 logic [31:0] idex_pc_r;
 
 logic branch_en_r;
@@ -151,8 +151,11 @@ end
 
 
 assign keepgoing = ~stall_;
-assign bubble_IDEX = flush_IDEX_ || stall_ || branch_taken;
-assign bubble_IFID = flush_IFID_ || branch_taken;
+assign pc_write_en = keepgoing || branch_taken;
+assign kill_fetch_response = flush_IFID_ || branch_taken;
+assign id_valid_inst = fetch_response_valid && valid_inst_;
+assign bubble_IDEX = flush_IDEX_ || stall_ || branch_taken
+                   || !fetch_response_valid;
 
 // assign stall_ = 1'b0; // temp
 assign stall_ = load_use_stall;
@@ -191,7 +194,7 @@ PC u_PC (
     .rst       (rst),
     .rst_pc_   (rst_pc_),
     .pc_next_  (pc_next_),
-    .pc_write_en (keepgoing),
+    .pc_write_en (pc_write_en),
 
     .pc        (pc)
 );
@@ -200,30 +203,21 @@ PC u_PC (
 // Program ROM
 // ------------------------------------------------------------
 Program_ROM u_Program_Rom (
-    .rom_addr  (pc),
-    .rom_data  (inst_)
-);
-
-// ------------------------------------------------------------
-// IF/ID pipeline register
-// ------------------------------------------------------------
-IFID u_IFID (
-    .clk          (clk),
-    .rst          (rst),
-    .flush_IFID_  (bubble_IFID),
-    .inst_        (inst_),
-    .write_en_    (keepgoing),
-    .pc_(pc),
-
-    .inst_r       (inst_r),
-    .pc_r(ifid_pc_r)
+    .clk           (clk),
+    .rst           (rst),
+    .fetch_en      (keepgoing),
+    .kill_response (kill_fetch_response),
+    .fetch_addr    (pc),
+    .response_valid(fetch_response_valid),
+    .response_pc   (fetch_response_pc),
+    .response_inst (fetch_response_inst)
 );
 
 // ------------------------------------------------------------
 // Instruction Decoder
 // ------------------------------------------------------------
 Inst_Decoder u_Inst_Decoder (
-    .inst_r     (inst_r),
+    .inst_r     (fetch_response_inst),
     .opcode_    (opcode_),
     .addr_rd_   (addr_rd_),
     .funct3_    (funct3_),
@@ -288,7 +282,7 @@ IDEX u_IDEX (
     .reg_write_(reg_write_),
     .operand_b_sel_(operand_b_sel_),
     .alu_op_(alu_op_),
-    .valid_inst_(valid_inst_),
+    .valid_inst_(id_valid_inst),
 
     .reg_write_r(idex_reg_write_r),
     .operand_b_sel_r(operand_b_sel_r),
@@ -298,7 +292,7 @@ IDEX u_IDEX (
     .operand_a_sel_(operand_a_sel_),
     .operand_a_sel_r(operand_a_sel_r),
 
-    .ifid_pc_(ifid_pc_r),
+    .ifid_pc_(fetch_response_pc),
     .idex_pc_r(idex_pc_r),
 
     .branch_en_(branch_en_),
@@ -356,7 +350,7 @@ Hazard_Unit u_Hazard_Unit (
     .ex_reg_write(idex_reg_write_r),
     .ex_rd(idex_addr_rd_r),
 
-    .id_valid(valid_inst_),
+    .id_valid(id_valid_inst),
     .id_uses_rs1(id_uses_rs1),
     .id_uses_rs2(id_uses_rs2),
     .id_rs1(addr_rs1_),

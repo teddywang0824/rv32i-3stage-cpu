@@ -1,4 +1,5 @@
 `timescale 1ns / 100ps
+`include "defines.sv"
 
 module tb_Hazard_Observe;
 
@@ -20,8 +21,21 @@ module tb_Hazard_Observe;
         $dumpvars(0, tb_Hazard_Observe);
     end
 
+    task automatic load_forwarding_program;
+        integer i;
+        begin
+            for (i = 0; i < 64; i = i + 1)
+                u_CPU_Top.u_Program_Rom.memory[i] = `I_NOP;
+
+            u_CPU_Top.u_Program_Rom.memory[0] = 32'h0050_0A93; // addi x21,x0,5
+            u_CPU_Top.u_Program_Rom.memory[1] = 32'h003A_8B13; // addi x22,x21,3
+            u_CPU_Top.u_Program_Rom.memory[2] = 32'h015B_0BB3; // add  x23,x22,x21
+        end
+    endtask
+
     initial begin
         rst = 1'b1;
+        load_forwarding_program();
         #20 rst = 1'b0;
 
         // 等待 ROM 中的三條相依指令完成目前的三級 pipeline。

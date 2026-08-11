@@ -1,20 +1,6 @@
 `timescale 1ns / 100ps
 `include "defines.sv"
 
-module Program_ROM (
-    input  logic [31:0] rom_addr,
-    output logic [31:0] rom_data
-);
-    logic [31:0] memory [0:63];
-
-    always_comb begin
-        if (rom_addr[31:8] == 24'd0)
-            rom_data = memory[rom_addr[7:2]];
-        else
-            rom_data = `I_NOP;
-    end
-endmodule
-
 module tb_CPU_Load;
 
     logic clk;

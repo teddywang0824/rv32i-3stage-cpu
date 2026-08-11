@@ -1,25 +1,17 @@
 `timescale 1ns / 100ps
 `include "defines.sv"
 
-module Program_ROM (
-    input  logic [31:0] rom_addr,
-    output logic [31:0] rom_data
-);
-    logic [31:0] memory [0:63];
-
-    always_comb begin
-        if (rom_addr[31:8] == 24'd0)
-            rom_data = memory[rom_addr[7:2]];
-        else
-            rom_data = `I_NOP;
-    end
-endmodule
-
 module tb_CPU_Load_Hazard;
 
     logic clk;
     logic rst;
     integer stall_count;
+    integer stall_hold_check_count;
+    logic check_stall_hold;
+    logic [31:0] stalled_pc;
+    logic [31:0] stalled_response_pc;
+    logic [31:0] stalled_response_inst;
+    logic stalled_response_valid;
 
     CPU_Top u_CPU_Top (
         .clk(clk),
@@ -41,6 +33,35 @@ module tb_CPU_Load_Hazard;
             stall_count <= 0;
         else if (u_CPU_Top.load_use_stall)
             stall_count <= stall_count + 1;
+    end
+
+    // Snapshot the complete fetch transaction before a stalled rising edge.
+    // After that edge, the PC and response must still be identical while
+    // ID/EX receives a bubble.
+    always @(negedge clk) begin
+        check_stall_hold = !rst && u_CPU_Top.load_use_stall;
+        if (check_stall_hold) begin
+            stalled_pc = u_CPU_Top.pc;
+            stalled_response_pc = u_CPU_Top.fetch_response_pc;
+            stalled_response_inst = u_CPU_Top.fetch_response_inst;
+            stalled_response_valid = u_CPU_Top.fetch_response_valid;
+        end
+    end
+
+    always @(posedge clk) begin
+        #1;
+        if (check_stall_hold) begin
+            if (u_CPU_Top.pc !== stalled_pc)
+                $fatal(1, "[FAIL] load-use stall did not hold PC");
+            if (u_CPU_Top.fetch_response_valid !== stalled_response_valid ||
+                u_CPU_Top.fetch_response_pc !== stalled_response_pc ||
+                u_CPU_Top.fetch_response_inst !== stalled_response_inst)
+                $fatal(1, "[FAIL] load-use stall did not hold complete fetch response");
+            if (u_CPU_Top.idex_valid_inst_r !== 1'b0)
+                $fatal(1, "[FAIL] load-use stall did not insert ID/EX bubble");
+
+            stall_hold_check_count = stall_hold_check_count + 1;
+        end
     end
 
     function automatic logic [31:0] encode_addi(
@@ -329,6 +350,8 @@ module tb_CPU_Load_Hazard;
     initial begin
         rst = 1'b1;
         stall_count = 0;
+        stall_hold_check_count = 0;
+        check_stall_hold = 1'b0;
         clear_rom_and_data();
 
         run_rs1_consumer();
@@ -339,7 +362,13 @@ module tb_CPU_Load_Hazard;
         run_false_dependency_cases();
         run_one_instruction_gap();
 
-        $display("[PASS] tb_CPU_Load_Hazard completed: 7 integration scenarios.");
+        if (stall_hold_check_count !== 6)
+            $fatal(1,
+                "[FAIL] expected 6 cycle-level stall-hold checks, observed %0d",
+                stall_hold_check_count
+            );
+
+        $display("[PASS] tb_CPU_Load_Hazard completed: 7 integration scenarios, 6 stall-hold checks.");
         $finish;
     end
 

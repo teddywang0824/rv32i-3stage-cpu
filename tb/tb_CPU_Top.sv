@@ -1,4 +1,5 @@
 `timescale 1ns / 100ps
+`include "defines.sv"
 
 module tb_CPU_Top ;
 
@@ -25,24 +26,41 @@ module tb_CPU_Top ;
         forever #5 clk = ~clk;
     end
 
-    // Step 13 directed instructions. Program ROM currently uses these addresses
-    // as NOP, so the testbench injects one instruction for each fetch cycle.
-    // 0x0000005C: lui   x24, 0x12345
-    // 0x00000060: auipc x25, 0x00001
-    initial begin
-        wait (rst === 1'b0);
-        wait (u_CPU_Top.pc === 32'h0000_005C);
-        force u_CPU_Top.inst_ = 32'h1234_5C37;
-        @(posedge clk);
-        #1;
-        release u_CPU_Top.inst_;
+    // This regression owns its program image.  Keeping the writable RTL ROM
+    // generic prevents unrelated tests from depending on a built-in program.
+    task automatic load_program;
+        integer i;
+        begin
+            for (i = 0; i < 64; i = i + 1)
+                u_CPU_Top.u_Program_Rom.memory[i] = `I_NOP;
 
-        wait (u_CPU_Top.pc === 32'h0000_0060);
-        force u_CPU_Top.inst_ = 32'h0000_1C97;
-        @(posedge clk);
-        #1;
-        release u_CPU_Top.inst_;
-    end
+            u_CPU_Top.u_Program_Rom.memory[0]  = 32'hFFB0_0093; // addi  x1,x0,-5
+            u_CPU_Top.u_Program_Rom.memory[1]  = 32'h0010_0113; // addi  x2,x0,1
+            u_CPU_Top.u_Program_Rom.memory[2]  = 32'h0060_2193; // slti  x3,x0,6
+            u_CPU_Top.u_Program_Rom.memory[3]  = 32'h0060_B213; // sltiu x4,x1,6
+            u_CPU_Top.u_Program_Rom.memory[4]  = 32'h7FF1_7293; // andi  x5,x2,2047
+            u_CPU_Top.u_Program_Rom.memory[5]  = 32'hFFF0_4313; // xori  x6,x0,-1
+            u_CPU_Top.u_Program_Rom.memory[6]  = 32'h0550_6393; // ori   x7,x0,0x55
+            u_CPU_Top.u_Program_Rom.memory[7]  = 32'h0041_1413; // slli  x8,x2,4
+            u_CPU_Top.u_Program_Rom.memory[8]  = 32'h0043_5493; // srli  x9,x6,4
+            u_CPU_Top.u_Program_Rom.memory[9]  = 32'h4043_5513; // srai  x10,x6,4
+            u_CPU_Top.u_Program_Rom.memory[10] = 32'h0081_05B3; // add   x11,x2,x8
+            u_CPU_Top.u_Program_Rom.memory[11] = 32'h4081_0633; // sub   x12,x2,x8
+            u_CPU_Top.u_Program_Rom.memory[12] = 32'h0021_16B3; // sll   x13,x2,x2
+            u_CPU_Top.u_Program_Rom.memory[13] = 32'h0020_A733; // slt   x14,x1,x2
+            u_CPU_Top.u_Program_Rom.memory[14] = 32'h0020_B7B3; // sltu  x15,x1,x2
+            u_CPU_Top.u_Program_Rom.memory[15] = 32'h0073_4833; // xor   x16,x6,x7
+            u_CPU_Top.u_Program_Rom.memory[16] = 32'h0023_58B3; // srl   x17,x6,x2
+            u_CPU_Top.u_Program_Rom.memory[17] = 32'h4023_5933; // sra   x18,x6,x2
+            u_CPU_Top.u_Program_Rom.memory[18] = 32'h0083_E9B3; // or    x19,x7,x8
+            u_CPU_Top.u_Program_Rom.memory[19] = 32'h0083_FA33; // and   x20,x7,x8
+            u_CPU_Top.u_Program_Rom.memory[20] = 32'h0050_0A93; // addi  x21,x0,5
+            u_CPU_Top.u_Program_Rom.memory[21] = 32'h003A_8B13; // addi  x22,x21,3
+            u_CPU_Top.u_Program_Rom.memory[22] = 32'h015B_0BB3; // add   x23,x22,x21
+            u_CPU_Top.u_Program_Rom.memory[23] = 32'h1234_5C37; // lui   x24,0x12345
+            u_CPU_Top.u_Program_Rom.memory[24] = 32'h0000_1C97; // auipc x25,0x00001
+        end
+    endtask
 
     // x4 的預期結果是 0，僅檢查最終值無法區分「正確寫回 0」和「從未執行」。
     // 因此另外記錄是否真的發生過對 x4 的 write-back。
@@ -67,6 +85,7 @@ module tb_CPU_Top ;
 
     initial begin
         rst = 1'b1;
+        load_program();
         
         #20 rst = 1'b0;
 
