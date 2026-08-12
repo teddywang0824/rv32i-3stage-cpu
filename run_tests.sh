@@ -29,6 +29,7 @@ run_test() {
     -I "${rtl_dir}" \
     -s "${top}" \
     -o "${simulation}" \
+    rtl/Trap_Detect.sv \
     "$@"
 
   echo "[RUN]     ${top}"
@@ -125,6 +126,11 @@ run_load_unit_test() {
   run_test tb_Load_Unit \
     rtl/Load_Unit.sv \
     tb/tb_Load_Unit.sv
+}
+
+run_trap_detect_test() {
+  run_test tb_Trap_Detect \
+    tb/tb_Trap_Detect.sv
 }
 
 run_trap_unit_test() {
@@ -460,6 +466,10 @@ case "${test_name}" in
     run_load_unit_test
     ;;
 
+  trapdetect)
+    run_trap_detect_test
+    ;;
+
   trapunit)
     run_trap_unit_test
     ;;
@@ -535,6 +545,7 @@ case "${test_name}" in
     run_data_memory_test
     run_store_unit_test
     run_load_unit_test
+    run_trap_detect_test
     run_trap_unit_test
     run_store_test
     run_load_test
@@ -552,7 +563,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapunit|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

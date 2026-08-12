@@ -100,6 +100,19 @@ logic [31:0] rs2_value_r;
 logic [4:0]  idex_addr_rd_r;
 logic [2:0]  idex_load_op_r;
 
+// ID-to-EX trap payload.  Later decode steps drive the ID-side request;
+// IDEX keeps it aligned with idex_pc_r and idex_inst_r.
+logic        id_trap_req_valid;
+logic [3:0]  id_trap_req_cause;
+logic [31:0] id_trap_req_tval;
+logic        idex_trap_req_valid;
+logic [3:0]  idex_trap_req_cause;
+logic [31:0] idex_trap_req_tval;
+logic        ex_trap_req_valid;
+logic [3:0]  ex_trap_req_cause;
+logic [31:0] ex_trap_req_pc;
+logic [31:0] ex_trap_req_tval;
+
 logic idex_reg_write_r;
 logic [3:0] alu_op_r;
 logic [1:0] operand_b_sel_r;
@@ -162,15 +175,15 @@ logic [3:0]  exwb_store_byte_enable_r;
 logic [31:0] load_value;
 logic load_misaligned;
 
-// Step 27 interface baseline.  Trap_Unit will replace these safe defaults
-// when the pending/ack/redirect behavior is integrated.
 assign trap_valid = 1'b0;
 assign trap_cause = 4'd0;
 assign trap_pc    = 32'd0;
 assign trap_tval  = 32'd0;
 
-// Keep the existing datapath names local while the public Core boundary uses
-// explicit request/response terminology.
+assign id_trap_req_valid = fetch_response_valid && !valid_inst_;
+assign id_trap_req_cause = `TRAP_ILLEGAL_INSTRUCTION;
+assign id_trap_req_tval  = fetch_response_inst;
+
 assign fetch_response_valid = imem_resp_valid;
 assign fetch_response_pc    = imem_resp_pc;
 assign fetch_response_inst  = imem_resp_inst;
@@ -378,7 +391,14 @@ IDEX u_IDEX (
     .store_op_r(store_op_r),
 
     .load_op_(load_op_),
-    .load_op_r(idex_load_op_r)
+    .load_op_r(idex_load_op_r),
+
+    .trap_req_valid_(id_trap_req_valid),
+    .trap_req_cause_(id_trap_req_cause),
+    .trap_req_tval_(id_trap_req_tval),
+    .trap_req_valid_r(idex_trap_req_valid),
+    .trap_req_cause_r(idex_trap_req_cause),
+    .trap_req_tval_r(idex_trap_req_tval)
 );
 
 ALU u_ALU (
@@ -476,6 +496,26 @@ Store_Unit u_Store_Unit (
     .byte_enable(byte_enable),
     .aligned_write_data(aligned_write_data),
     .misaligned(misaligned)
+);
+
+Trap_Detect u_Trap_Detect (
+    .idex_trap_valid   (idex_trap_req_valid),
+    .idex_trap_cause   (idex_trap_req_cause),
+    .idex_trap_tval    (idex_trap_req_tval),
+    .ex_valid          (idex_valid_inst_r),
+    .fault_pc          (idex_pc_r),
+    .control_redirect  (branch_taken),
+    .control_target    (branch_target),
+    .mem_en            (mem_en_r),
+    .mem_write         (mem_write_r),
+    .load_op           (idex_load_op_r),
+    .effective_address (alu_result_),
+    .store_misaligned  (misaligned),
+    
+    .trap_req_valid    (ex_trap_req_valid),
+    .trap_req_cause    (ex_trap_req_cause),
+    .trap_req_pc       (ex_trap_req_pc),
+    .trap_req_tval     (ex_trap_req_tval)
 );
 
 Load_Unit u_Load_Unit (

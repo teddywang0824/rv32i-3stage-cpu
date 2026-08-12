@@ -31,6 +31,9 @@ module tb_IDEX;
     logic mem_en;
     logic mem_write;
     logic [2:0] store_op;
+    logic        trap_req_valid_;
+    logic [3:0]  trap_req_cause_;
+    logic [31:0] trap_req_tval_;
 
     logic reg_write_r;
     logic [1:0] operand_b_sel_r;
@@ -45,6 +48,9 @@ module tb_IDEX;
     logic mem_en_r;
     logic mem_write_r;
     logic [2:0] store_op_r;
+    logic        trap_req_valid_r;
+    logic [3:0]  trap_req_cause_r;
+    logic [31:0] trap_req_tval_r;
 
     IDEX u_IDEX (
         .clk          (clk),
@@ -74,6 +80,9 @@ module tb_IDEX;
         .mem_en(mem_en),
         .mem_write(mem_write),
         .store_op(store_op),
+        .trap_req_valid_(trap_req_valid_),
+        .trap_req_cause_(trap_req_cause_),
+        .trap_req_tval_(trap_req_tval_),
 
         .reg_write_r(reg_write_r),
         .operand_b_sel_r(operand_b_sel_r),
@@ -87,7 +96,10 @@ module tb_IDEX;
         .load_op_r(load_op_r),
         .mem_en_r(mem_en_r),
         .mem_write_r(mem_write_r),
-        .store_op_r(store_op_r)
+        .store_op_r(store_op_r),
+        .trap_req_valid_r(trap_req_valid_r),
+        .trap_req_cause_r(trap_req_cause_r),
+        .trap_req_tval_r(trap_req_tval_r)
         
     );
 
@@ -115,6 +127,9 @@ module tb_IDEX;
         input logic        expected_mem_write,
         input logic [2:0]  expected_store_op,
         input logic [2:0]  expected_load_op,
+        input logic        expected_trap_valid,
+        input logic [3:0]  expected_trap_cause,
+        input logic [31:0] expected_trap_tval,
         input string       test_name
     );
         begin
@@ -214,6 +229,15 @@ module tb_IDEX;
             if (load_op_r !== expected_load_op)
                 $fatal(1, "[FAIL] %s load_op: expected=%03b actual=%03b",
                        test_name, expected_load_op, load_op_r);
+            if (trap_req_valid_r !== expected_trap_valid)
+                $fatal(1, "[FAIL] %s trap valid: expected=%b actual=%b",
+                       test_name, expected_trap_valid, trap_req_valid_r);
+            if (trap_req_cause_r !== expected_trap_cause)
+                $fatal(1, "[FAIL] %s trap cause: expected=%0d actual=%0d",
+                       test_name, expected_trap_cause, trap_req_cause_r);
+            if (trap_req_tval_r !== expected_trap_tval)
+                $fatal(1, "[FAIL] %s trap tval: expected=%08h actual=%08h",
+                       test_name, expected_trap_tval, trap_req_tval_r);
 
             $display("[PASS] %s", test_name);
         end
@@ -240,6 +264,9 @@ module tb_IDEX;
         mem_en       = 1'b1;
         mem_write    = 1'b1;
         store_op     = `F3_SW;
+        trap_req_valid_ = 1'b1;
+        trap_req_cause_ = `TRAP_ILLEGAL_INSTRUCTION;
+        trap_req_tval_  = 32'hFFFF_FFFF;
 
         // Reset 在上升緣將所有輸出清為 0。
         @(posedge clk);
@@ -248,6 +275,7 @@ module tb_IDEX;
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
+                      1'b0, 4'd0, 32'd0,
                       "reset clears all outputs");
 
         // 解除 reset，並在下一個上升緣同時保存四個欄位。
@@ -271,6 +299,9 @@ module tb_IDEX;
         mem_en       = 1'b1;
         mem_write    = 1'b1;
         store_op     = `F3_SW;
+        trap_req_valid_ = 1'b1;
+        trap_req_cause_ = `TRAP_ILLEGAL_INSTRUCTION;
+        trap_req_tval_  = 32'h0081_05B3;
 
         @(posedge clk);
         #1;
@@ -279,6 +310,7 @@ module tb_IDEX;
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       1'b1, `F3_JAL, 1'b1,
                       1'b1, 1'b1, `F3_SW, `F3_LW,
+                      1'b1, `TRAP_ILLEGAL_INSTRUCTION, 32'h0081_05B3,
                       "rising edge captures all inputs");
 
         // 在上升緣之間改變輸入，輸出仍應保持舊值。
@@ -301,12 +333,16 @@ module tb_IDEX;
         mem_write    = 1'b0;
         store_op     = `F3_STORE_NONE;
         load_op_     = `F3_LB;
+        trap_req_valid_ = 1'b0;
+        trap_req_cause_ = `TRAP_LOAD_ADDR_MISALIGNED;
+        trap_req_tval_  = 32'h0000_0102;
         #1;
         check_outputs(5'd7, 32'hFFFF_FFFB,
                       32'h1234_5678, 32'hCAFE_BABE, 32'h0081_05B3,
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0100,
                       1'b1, `F3_JAL, 1'b1,
                       1'b1, 1'b1, `F3_SW, `F3_LW,
+                      1'b1, `TRAP_ILLEGAL_INSTRUCTION, 32'h0081_05B3,
                       "outputs hold between rising edges");
 
         // 下一個上升緣才一起更新。
@@ -317,6 +353,7 @@ module tb_IDEX;
                       1'b0, `OP_B_RS2, `OP_A_ZERO, `ALUOP_SUB, 1'b0, 32'h0000_0104,
                       1'b0, `F3_BGEU, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, `F3_LB,
+                      1'b0, `TRAP_LOAD_ADDR_MISALIGNED, 32'h0000_0102,
                       "next rising edge updates all outputs");
 
         // Flush 在上升緣將所有輸出清為 0。
@@ -340,6 +377,9 @@ module tb_IDEX;
         mem_write    = 1'b1;
         store_op     = `F3_SB;
         load_op_     = `F3_LHU;
+        trap_req_valid_ = 1'b1;
+        trap_req_cause_ = `TRAP_STORE_ADDR_MISALIGNED;
+        trap_req_tval_  = 32'h0000_0202;
 
         @(posedge clk);
         #1;
@@ -347,6 +387,7 @@ module tb_IDEX;
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
+                      1'b0, 4'd0, 32'd0,
                       "flush clears all outputs");
 
         // 解除 flush 後恢復正常保存。
@@ -370,6 +411,9 @@ module tb_IDEX;
         mem_write    = 1'b1;
         store_op     = `F3_SH;
         load_op_     = `F3_LBU;
+        trap_req_valid_ = 1'b1;
+        trap_req_cause_ = `TRAP_BREAKPOINT;
+        trap_req_tval_  = 32'd0;
 
         @(posedge clk);
         #1;
@@ -378,6 +422,7 @@ module tb_IDEX;
                       1'b1, `OP_B_FOUR, `OP_A_PC, `ALUOP_ADD, 1'b1, 32'h0000_0300,
                       1'b1, `F3_JAL, 1'b1,
                       1'b1, 1'b1, `F3_SH, `F3_LBU,
+                      1'b1, `TRAP_BREAKPOINT, 32'd0,
                       "ID/EX resumes after flush");
 
         // 第二次 reset 仍能清除所有輸出。
@@ -401,6 +446,9 @@ module tb_IDEX;
         mem_write    = 1'b1;
         store_op     = `F3_SW;
         load_op_     = `F3_LH;
+        trap_req_valid_ = 1'b1;
+        trap_req_cause_ = `TRAP_ENV_CALL;
+        trap_req_tval_  = 32'd0;
 
         @(posedge clk);
         #1;
@@ -408,6 +456,7 @@ module tb_IDEX;
                       1'b0, `OP_B_RS2, `OP_A_RS1, `ALUOP_NOP, 1'b0, 32'd0,
                       1'b0, `F3_BRANCH_NONE, 1'b0,
                       1'b0, 1'b0, `F3_STORE_NONE, 3'd0,
+                      1'b0, 4'd0, 32'd0,
                       "second reset clears all outputs");
 
         $display("[PASS] tb_IDEX completed.");

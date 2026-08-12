@@ -30,6 +30,11 @@ module IDEX (
 
     input logic [2:0] load_op_,
 
+    // Trap metadata detected in ID and carried as one payload to EX.
+    input logic        trap_req_valid_,
+    input logic [3:0]  trap_req_cause_,
+    input logic [31:0] trap_req_tval_,
+
     output logic [4:0] addr_rd_r,
     output logic [31:0] imm_r,
     output logic [31:0] rs1_value_r,
@@ -50,7 +55,11 @@ module IDEX (
 
     output logic mem_en_r,
     output logic mem_write_r,
-    output logic [2:0] store_op_r
+    output logic [2:0] store_op_r,
+
+    output logic        trap_req_valid_r,
+    output logic [3:0]  trap_req_cause_r,
+    output logic [31:0] trap_req_tval_r
 );
 
     always_ff @(posedge clk) begin
@@ -78,6 +87,10 @@ module IDEX (
             mem_write_r <= 0;
             store_op_r <= 0;
 
+            trap_req_valid_r <= 1'b0;
+            trap_req_cause_r <= 4'd0;
+            trap_req_tval_r  <= 32'd0;
+
         end
         else if (flush_IDEX_) begin
             addr_rd_r   <= 5'd0;
@@ -102,6 +115,10 @@ module IDEX (
             mem_en_r <= 0;
             mem_write_r <= 0;
             store_op_r <= 0;
+
+            trap_req_valid_r <= 1'b0;
+            trap_req_cause_r <= 4'd0;
+            trap_req_tval_r  <= 32'd0;
         end
         else begin
             addr_rd_r   <= addr_rd_;
@@ -126,6 +143,10 @@ module IDEX (
             mem_en_r <= mem_en;
             mem_write_r <= mem_write;
             store_op_r <= store_op;
+
+            trap_req_valid_r <= trap_req_valid_;
+            trap_req_cause_r <= trap_req_cause_;
+            trap_req_tval_r  <= trap_req_tval_;
         end
     end
 
