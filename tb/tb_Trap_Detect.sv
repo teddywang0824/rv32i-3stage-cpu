@@ -54,6 +54,9 @@ module tb_Trap_Detect;
         check(0, 0, 0, "normal EX instruction has no trap");
 
         control_redirect = 1;
+        control_target = 32'h100;
+        check(0, 0, 0, "taken control target accepts IALIGN=32 address");
+
         control_target = 32'h102;
         check(1, `TRAP_INST_ADDR_MISALIGNED, 32'h102,
               "taken control target violates IALIGN=32");
@@ -64,14 +67,29 @@ module tb_Trap_Detect;
 
         mem_en = 1;
         load_op = `F3_LH;
+        effective_address = 32'h100;
+        check(0, 0, 0, "LH accepts even effective address");
+
         effective_address = 32'h101;
         check(1, `TRAP_LOAD_ADDR_MISALIGNED, 32'h101,
               "LH rejects odd effective address");
 
+        load_op = `F3_LHU;
+        check(1, `TRAP_LOAD_ADDR_MISALIGNED, 32'h101,
+              "LHU rejects odd effective address");
+
         load_op = `F3_LW;
+        effective_address = 32'h100;
+        check(0, 0, 0, "LW accepts word-aligned address");
+        effective_address = 32'h101;
+        check(1, `TRAP_LOAD_ADDR_MISALIGNED, 32'h101,
+              "LW rejects byte offset 1");
         effective_address = 32'h102;
         check(1, `TRAP_LOAD_ADDR_MISALIGNED, 32'h102,
-              "LW requires word alignment");
+              "LW rejects byte offset 2");
+        effective_address = 32'h103;
+        check(1, `TRAP_LOAD_ADDR_MISALIGNED, 32'h103,
+              "LW rejects byte offset 3");
 
         load_op = `F3_LBU;
         effective_address = 32'h103;
@@ -82,6 +100,23 @@ module tb_Trap_Detect;
         effective_address = 32'h202;
         check(1, `TRAP_STORE_ADDR_MISALIGNED, 32'h202,
               "Store_Unit misalignment becomes Store trap");
+
+        store_misaligned = 0;
+        check(0, 0, 0, "aligned Store does not raise trap");
+
+        // Decode-time traps have priority when multiple detector inputs are
+        // asserted for the same EX payload.
+        idex_trap_valid = 1;
+        idex_trap_cause = `TRAP_ILLEGAL_INSTRUCTION;
+        idex_trap_tval = 32'hFFFF_FFFF;
+        control_redirect = 1;
+        control_target = 32'h302;
+        store_misaligned = 1;
+        check(1, `TRAP_ILLEGAL_INSTRUCTION, 32'hFFFF_FFFF,
+              "decode trap has priority over alignment candidates");
+
+        idex_trap_valid = 0;
+        control_redirect = 0;
 
         ex_valid = 0;
         check(0, 0, 0, "invalid EX payload cannot raise runtime trap");
