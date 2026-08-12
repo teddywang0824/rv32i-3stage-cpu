@@ -253,11 +253,11 @@
             <tr><td><code>Data_Memory.sv</code></td><td>固定 4 KiB（1024×32）、同步讀寫、read valid 與 4-bit byte enable；Load/Store path 已接入</td><td><span class="status ready">已驗證</span></td><td>之後抽換 SRAM wrapper 時維持相同時序契約</td></tr>
             <tr><td><code>Store_Unit.sv</code></td><td>SB/SH/SW byte enable、write-data 對齊與 misalignment suppression；錯誤位址交由 precise trap path 回報</td><td><span class="status ready">已驗證</span></td><td>持續保留 memory side-effect suppression 回歸</td></tr>
             <tr><td><code>Load_Unit.sv</code></td><td>LB/LH sign extension、LBU/LHU zero extension、LW、misalignment 與緊鄰 load-use dependency；錯誤位址交由 precise trap path 回報</td><td><span class="status ready">已驗證</span></td><td>持續保留 register/memory side-effect suppression 回歸</td></tr>
-            <tr><td><code>Control_Unit.sv</code></td><td>I/R/U、branch、jump、Load/Store 與 FENCE controls；合法 FENCE 無副作用且不宣告 source dependency，非法與保留編碼輸出安全預設值</td><td><span class="status ready">已驗證</span></td><td>下一步補 ECALL、EBREAK 與 trap cause 解碼</td></tr>
+            <tr><td><code>Control_Unit.sv</code></td><td>I/R/U、branch、jump、Load/Store 與 FENCE controls；FENCE 無副作用，ECALL/EBREAK 由完整固定編碼進入 precise trap，保留編碼維持 illegal</td><td><span class="status ready">已驗證</span></td><td>持續擴充其餘 architectural trap</td></tr>
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX/WB→ID rs1/rs2 bypass；Load address 不會在 EX 被誤當成結果 forwarding，並已整合 load-use 精確 stall</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>Hazard_Unit.sv</code></td><td>比較 EX Load 的 rd 與 ID 指令真正使用的 rs1/rs2；排除 x0 與未使用來源，真相依時精確 stall 一個 cycle</td><td><span class="status ready">已驗證</span></td><td>之後可延伸支援可變延遲 memory</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Core.sv</code></td><td>四級 datapath/control/register file；以明確 request/response ports 連接 memory，整合 precise trap，並讓 FENCE 作為無副作用的合法 ordering point 正常退休</td><td><span class="status ready">已驗證</span></td><td>下一步支援 ECALL 與 EBREAK</td></tr>
+            <tr><td><code>CPU_Core.sv</code></td><td>四級 datapath/control/register file；整合 precise trap 與 FENCE，並以完整 encoding 區分 ECALL cause 11、EBREAK cause 3 及其他 SYSTEM illegal trap</td><td><span class="status ready">已驗證</span></td><td>下一步完成所有 illegal instruction precise-trap 邊界</td></tr>
             <tr><td><code>Trap_Detect.sv</code></td><td>統一偵測 illegal instruction、instruction address misaligned、Load/Store address misaligned，輸出成組 cause/PC/tval</td><td><span class="status ready">已驗證</span></td><td>後續加入 ECALL 與 EBREAK cause</td></tr>
             <tr><td><code>Trap_Unit.sv</code></td><td>保存單筆 pending trap metadata；ack 前保持穩定，ack 時依外部指定 PC redirect，pending 時不覆寫既有事件</td><td><span class="status ready">已驗證</span></td><td>持續保留 request/ack/reset 優先權回歸</td></tr>
             <tr><td><code>CPU_Sim_Top.sv</code></td><td>實例化 CPU_Core、Program_ROM、Data_Memory，並集中提供 testbench debug aliases 與 register helper</td><td><span class="status ready">已驗證</span></td><td>後續加入外部程式映像 loader</td></tr>
@@ -273,6 +273,7 @@
             <tr><td><code>tb_Trap_Unit.sv</code></td><td>涵蓋 reset、metadata 保存、pending 穩定、第二筆拒絕、ack redirect、reset 優先與 ack/request 同週期，共 9 類 contract 情境</td><td><span class="status ready">自動驗證</span></td><td>作為 trap handshake 與優先權單元回歸</td></tr>
             <tr><td><code>tb_CPU_Trap.sv</code></td><td>驗證 illegal 與 misaligned Store precise trap；older 可退休，faulting/younger 不退休且無副作用，每筆只送一次事件，ack 後從指定 PC 重新取指</td><td><span class="status ready">自動驗證</span></td><td>後續擴充 SYSTEM 與其餘 alignment trap 情境</td></tr>
             <tr><td><code>tb_CPU_FENCE.sv</code></td><td>驗證 Store/FENCE/Load 排序、兩筆 FENCE 合法退休、無 register/memory/redirect/dependency 副作用，以及保留 MISC-MEM funct3 的 illegal trap</td><td><span class="status ready">自動驗證</span></td><td>memory contract 加入 outstanding transaction 時需擴充 drain 測試</td></tr>
+            <tr><td><code>tb_CPU_SYSTEM.sv</code></td><td>驗證 ECALL、EBREAK 與 reserved SYSTEM 的 cause/PC/tval、pending 穩定、單次事件、無副作用、faulting/younger 不退休及 ack redirect</td><td><span class="status ready">自動驗證</span></td><td>後續加入 privileged/CSR extension 時擴充 SYSTEM legality</td></tr>
             <tr><td><code>tb_CPU_Program.sv</code></td><td>執行四元素 array sum；38 cycles 內得到 13，並核對 4 Loads、4 stalls、4 次 BNE（3 taken）與一次結果 Store</td><td><span class="status ready">自動驗證</span></td><td>之後可擴充更多編譯程式映像</td></tr>
             <tr><td><code>tb_CPU_Retire.sv</code></td><td>將 12 筆 ordered retire event 與 golden trace 逐條比對，另驗證 3 筆 trap；faulting 指令不再出現在 retire trace</td><td><span class="status ready">自動驗證</span></td><td>未來可將固定 golden trace 升級為 Spike/QEMU 通用差分測試</td></tr>
             <tr><td>模擬工具</td><td>WSL + Icarus Verilog；可用 run_tests.sh 重複執行</td><td><span class="status ready">已驗證</span></td><td>之後可選配 GTKWave 查看 VCD</td></tr>
@@ -756,7 +757,8 @@
       "rv32i-contract",
       "core-boundary",
       "trap-contract",
-      "fence"
+      "fence",
+      "system"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();

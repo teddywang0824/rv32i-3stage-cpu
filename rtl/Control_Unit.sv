@@ -315,6 +315,9 @@ always_comb begin
         `Opcode_MISC_MEM : begin
             valid_inst_ = (funct3_ == `F3_FENCE) ? 1'b1 : 0;
         end
+        `Opcode_SYSTEM  : begin
+            valid_inst_ = 0;
+        end
         default: begin
             reg_write_ = 0;
             operand_b_sel_ = 0;

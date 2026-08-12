@@ -184,8 +184,18 @@ logic [31:0] load_value;
 logic load_misaligned;
 
 assign id_trap_req_valid = fetch_response_valid && !valid_inst_;
-assign id_trap_req_cause = `TRAP_ILLEGAL_INSTRUCTION;
-assign id_trap_req_tval  = fetch_response_inst;
+// ECALL and EBREAK share the SYSTEM opcode with many unsupported privileged
+// and CSR instructions, so distinguish the two supported traps using their
+// complete fixed 32-bit encodings.  Every other invalid encoding remains an
+// illegal-instruction trap and reports the original instruction in tval.
+assign id_trap_req_cause = (fetch_response_inst == `I_ECALL)
+                         ? `TRAP_ENV_CALL
+                         : (fetch_response_inst == `I_EBREAK)
+                         ? `TRAP_BREAKPOINT
+                         : `TRAP_ILLEGAL_INSTRUCTION;
+assign id_trap_req_tval  = ((fetch_response_inst == `I_ECALL) ||
+                            (fetch_response_inst == `I_EBREAK))
+                         ? 32'd0 : fetch_response_inst;
 
 assign fetch_response_valid = imem_resp_valid;
 assign fetch_response_pc    = imem_resp_pc;
@@ -265,9 +275,6 @@ assign check = effective_ex_mem_en && !misaligned;
 
 assign rd_value_ = (exwb_mem_en_r && !exwb_mem_write_r) ? load_value : alu_result_r;
 
-// A retire event describes the instruction whose architectural effects commit
-// at the current write-back edge.  Consumers should sample these signals on
-// the rising edge, before EX/WB advances to the following instruction.
 assign retire_valid           = exwb_valid_inst_r;
 assign retire_pc              = exwb_pc_r;
 assign retire_inst            = exwb_inst_r;
