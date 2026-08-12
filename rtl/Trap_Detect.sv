@@ -26,21 +26,18 @@ module Trap_Detect (
     logic load_misaligned;
     logic store_fault;
 
+    assign control_misaligned = ex_valid && control_redirect
+                              && (control_target[1:0] != 2'b00);
+
+    assign load_misaligned = ex_valid && mem_en && !mem_write
+                           && ((((load_op == `F3_LH) || (load_op == `F3_LHU))
+                                && effective_address[0])
+                               || ((load_op == `F3_LW)
+                                   && (|effective_address[1:0])));
+
+    assign store_fault = ex_valid && mem_en && mem_write && store_misaligned;
+
     always_comb begin
-        control_misaligned = ex_valid && control_redirect && (control_target[1:0] != 2'b00);
-
-        load_misaligned = 1'b0;
-        if (ex_valid && mem_en && !mem_write) begin
-            case (load_op)
-                `F3_LB, `F3_LBU: load_misaligned = 1'b0;
-                `F3_LH, `F3_LHU: load_misaligned = effective_address[0];
-                `F3_LW:           load_misaligned = |effective_address[1:0];
-                default:          load_misaligned = 1'b0;
-            endcase
-        end
-
-        store_fault = ex_valid && mem_en && mem_write && store_misaligned;
-
         trap_req_valid = 1'b0;
         trap_req_cause = 4'd0;
         trap_req_pc    = 32'd0;

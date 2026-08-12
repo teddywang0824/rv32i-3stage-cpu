@@ -6,12 +6,24 @@ module tb_CPU_Illegal;
     logic clk;
     logic rst;
     logic [6:0] seen_illegal;
+    logic trap_valid;
+    logic [3:0] trap_cause;
+    logic [31:0] trap_pc;
+    logic [31:0] trap_tval;
+    integer trap_count;
+
+    wire trap_ack = trap_valid;
+    wire [31:0] trap_redirect_pc = trap_pc + 32'd4;
 
     CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst),
-        .trap_ack(1'b0),
-        .trap_redirect_pc(32'd0)
+        .trap_valid(trap_valid),
+        .trap_cause(trap_cause),
+        .trap_pc(trap_pc),
+        .trap_tval(trap_tval),
+        .trap_ack(trap_ack),
+        .trap_redirect_pc(trap_redirect_pc)
     );
 
     initial begin
@@ -124,6 +136,7 @@ module tb_CPU_Illegal;
     always @(posedge clk) begin
         if (rst) begin
             seen_illegal <= 7'b0;
+            trap_count = 0;
         end else if (u_CPU_Top.fetch_response_valid &&
                      !u_CPU_Top.valid_inst_) begin
             if (u_CPU_Top.reg_write_ !== 1'b0 ||
@@ -151,6 +164,16 @@ module tb_CPU_Illegal;
                 seen_illegal[6] <= 1'b1;
         end
 
+        if (!rst && trap_valid) begin
+            trap_count = trap_count + 1;
+            $display("[TRACE] illegal trap[%0d] pc=%08h inst=%08h",
+                     trap_count, trap_pc, trap_tval);
+            if (trap_cause !== `TRAP_ILLEGAL_INSTRUCTION ||
+                trap_tval !== u_CPU_Top.u_Program_Rom.memory[trap_pc[7:2]])
+                $fatal(1, "[FAIL] illegal trap metadata cause=%0d pc=%08h tval=%08h",
+                       trap_cause, trap_pc, trap_tval);
+        end
+
         if (!rst && u_CPU_Top.branch_taken)
             $fatal(1, "[FAIL] illegal control-flow encoding redirected the PC");
     end
@@ -158,6 +181,7 @@ module tb_CPU_Illegal;
     initial begin
         rst = 1'b1;
         seen_illegal = 7'b0;
+        trap_count = 0;
         clear_rom_and_data();
 
         // Legal instructions surround seven distinct illegal encodings.
@@ -193,12 +217,29 @@ module tb_CPU_Illegal;
         u_CPU_Top.write_reg(7, 32'h7777_7777);
         u_CPU_Top.u_Data_Memory.memory[0] = 32'hDEAD_BEEF;
 
-        repeat (28) @(posedge clk);
+        fork
+            begin : wait_for_all_illegal_traps
+                integer timeout;
+                timeout = 0;
+                while ((trap_count < 7 ||
+                        u_CPU_Top.u_Data_Memory.memory[1] !== 32'h4444_4444) &&
+                       timeout < 60) begin
+                    @(posedge clk);
+                    #1;
+                    timeout = timeout + 1;
+                end
+                if (timeout == 60)
+                    $fatal(1, "[FAIL] timeout waiting for seven traps and legal continuation");
+            end
+        join
         #1;
 
         if (seen_illegal !== 7'b111_1111)
             $fatal(1, "[FAIL] not all illegal instructions reached ID: seen=%07b",
                    seen_illegal);
+        if (trap_count !== 7)
+            $fatal(1, "[FAIL] expected 7 illegal trap events, got %0d",
+                   trap_count);
 
         check_reg(5'd1, 32'd11, "illegal R-type preserves rd");
         check_reg(5'd2, 32'd12, "execution continues across illegal R/shift");
@@ -212,7 +253,7 @@ module tb_CPU_Illegal;
         if (u_CPU_Top.u_Data_Memory.memory[1] !== 32'h4444_4444)
             $fatal(1, "[FAIL] legal Store after illegal instructions did not execute");
 
-        $display("[PASS] tb_CPU_Illegal completed: 7 illegal encodings have no side effects.");
+        $display("[PASS] tb_CPU_Illegal completed: 7 illegal encodings trapped with no side effects.");
         $finish;
     end
 

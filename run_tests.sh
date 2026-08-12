@@ -30,6 +30,7 @@ run_test() {
     -s "${top}" \
     -o "${simulation}" \
     rtl/Trap_Detect.sv \
+    rtl/Trap_Unit.sv \
     "$@"
 
   echo "[RUN]     ${top}"
@@ -135,8 +136,30 @@ run_trap_detect_test() {
 
 run_trap_unit_test() {
   run_test tb_Trap_Unit \
-    rtl/Trap_Unit.sv \
     tb/tb_Trap_Unit.sv
+}
+
+run_cpu_trap_test() {
+  run_test tb_CPU_Trap \
+    rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
+    rtl/EXWB.sv \
+    rtl/IDEX.sv \
+    rtl/IFID.sv \
+    rtl/Inst_Decoder.sv \
+    rtl/PC.sv \
+    rtl/Program_ROM.sv \
+    rtl/Reg_File.sv \
+    rtl/Control_Unit.sv \
+    rtl/ALU.sv \
+    rtl/Forwarding_Unit.sv \
+    rtl/Hazard_Unit.sv \
+    rtl/Branch_Unit.sv \
+    rtl/Store_Unit.sv \
+    rtl/Data_Memory.sv \
+    rtl/Load_Unit.sv \
+    tb/tb_CPU_Trap.sv
 }
 
 run_cpu_test() {
@@ -474,6 +497,10 @@ case "${test_name}" in
     run_trap_unit_test
     ;;
 
+  cputrap)
+    run_cpu_trap_test
+    ;;
+
   store)
     run_store_test
     echo "Waveform: ${build_dir}/cpu_store.vcd"
@@ -547,6 +574,7 @@ case "${test_name}" in
     run_load_unit_test
     run_trap_detect_test
     run_trap_unit_test
+    run_cpu_trap_test
     run_store_test
     run_load_test
     run_load_hazard_test
@@ -563,7 +591,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|cputrap|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

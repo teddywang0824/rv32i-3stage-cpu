@@ -5,12 +5,22 @@ module tb_CPU_Load;
 
     logic clk;
     logic rst;
+    logic trap_ack;
+    logic [31:0] trap_redirect_pc;
+    logic trap_valid;
+    logic [3:0] trap_cause;
+    logic [31:0] trap_pc;
+    logic [31:0] trap_tval;
 
     CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst),
-        .trap_ack(1'b0),
-        .trap_redirect_pc(32'd0)
+        .trap_valid(trap_valid),
+        .trap_cause(trap_cause),
+        .trap_pc(trap_pc),
+        .trap_tval(trap_tval),
+        .trap_ack(trap_ack),
+        .trap_redirect_pc(trap_redirect_pc)
     );
 
     initial begin
@@ -68,6 +78,8 @@ module tb_CPU_Load;
         begin
             @(negedge clk);
             rst = 1'b1;
+            trap_ack = 1'b0;
+            trap_redirect_pc = 32'd0;
             clear_rom_and_data();
             repeat (3) @(posedge clk);
             @(negedge clk);
@@ -164,14 +176,29 @@ module tb_CPU_Load;
             u_CPU_Top.u_Program_Rom.memory[1] = encode_load(`F3_LW, 5'd15, 5'd1, 32'sd2);
             u_CPU_Top.u_Program_Rom.memory[2] = encode_load(`F3_LW, 5'd16, 5'd1, 32'sd0);
 
-            repeat (14) @(posedge clk);
+            wait (trap_valid);
             #1;
+
+            if (trap_cause !== `TRAP_LOAD_ADDR_MISALIGNED ||
+                trap_pc !== 32'h0000_0000 || trap_tval !== 32'h0000_0001)
+                $fatal(1, "[FAIL] misaligned LH trap metadata");
 
             check_reg(5'd14, 32'hAAAA_AAAA, "misaligned LH suppresses rd write");
             check_reg(5'd15, 32'hBBBB_BBBB, "misaligned LW suppresses rd write");
+
+            // Resume at the aligned Load.  The younger PC=4 instruction was
+            // killed by the first precise trap and must not execute.
+            @(negedge clk);
+            trap_redirect_pc = 32'h0000_0008;
+            trap_ack = 1'b1;
+            @(posedge clk);
+            #1;
+            trap_ack = 1'b0;
+            repeat (8) @(posedge clk);
+            #1;
             check_reg(5'd16, 32'h89AB_CDEF, "aligned Load after misaligned requests still writes");
 
-            $display("[PASS] CPU Load misalignment suppression");
+            $display("[PASS] CPU Load precise misalignment trap and ack redirect");
         end
     endtask
 
@@ -221,6 +248,8 @@ module tb_CPU_Load;
 
     initial begin
         rst = 1'b1;
+        trap_ack = 1'b0;
+        trap_redirect_pc = 32'd0;
         clear_rom_and_data();
 
         if (encode_load(`F3_LW, 5'd2, 5'd1, 32'sd16) !== 32'h0100_A103)

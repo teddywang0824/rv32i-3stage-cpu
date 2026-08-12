@@ -189,7 +189,30 @@ module tb_Trap_Unit;
         $display("[PASS] ack while idle is ignored");
 
         trap_ack = 1'b0;
-        $display("[PASS] tb_Trap_Unit completed: 8 contract scenarios.");
+
+        // Contract choice for simultaneous ack + request: the pending event is
+        // completed and the new request is not accepted in the same cycle.
+        issue_trap(`TRAP_BREAKPOINT, 32'h0000_0400, 32'd0);
+        check_pending_metadata(`TRAP_BREAKPOINT,
+                               32'h0000_0400,
+                               32'd0,
+                               "prepare simultaneous ack and request case");
+        @(negedge clk);
+        trap_ack         = 1'b1;
+        trap_req_valid   = 1'b1;
+        trap_req_cause   = `TRAP_ENV_CALL;
+        trap_req_pc      = 32'h0000_0500;
+        trap_req_tval    = 32'd0;
+        trap_redirect_pc = 32'h0000_0080;
+        @(posedge clk);
+        #1;
+        trap_ack       = 1'b0;
+        trap_req_valid = 1'b0;
+        if (trap_valid !== 1'b0 || trap_pending !== 1'b0)
+            $fatal(1, "[FAIL] simultaneous ack/request unexpectedly retained a trap");
+        $display("[PASS] ack completes pending trap and rejects same-cycle request");
+
+        $display("[PASS] tb_Trap_Unit completed: 9 contract scenarios.");
         $finish;
     end
 

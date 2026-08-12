@@ -20,12 +20,24 @@ module tb_CPU_Retire;
     integer retire_count;
     logic trace_done;
     logic illegal_seen_in_id;
+    logic trap_valid;
+    logic [3:0] trap_cause;
+    logic [31:0] trap_pc;
+    logic [31:0] trap_tval;
+    integer trap_count;
+
+    wire trap_ack = trap_valid;
+    wire [31:0] trap_redirect_pc = trap_pc + 32'd4;
 
     CPU_Sim_Top u_CPU_Top (
         .clk                    (clk),
         .rst                    (rst),
-        .trap_ack               (1'b0),
-        .trap_redirect_pc       (32'd0),
+        .trap_valid             (trap_valid),
+        .trap_cause             (trap_cause),
+        .trap_pc                (trap_pc),
+        .trap_tval              (trap_tval),
+        .trap_ack               (trap_ack),
+        .trap_redirect_pc       (trap_redirect_pc),
         .retire_valid           (retire_valid),
         .retire_pc              (retire_pc),
         .retire_inst            (retire_inst),
@@ -216,28 +228,20 @@ module tb_CPU_Retire;
                     expected_rd_data = 32'd44;
                 end
                 9: begin
-                    expected_pc = 32'd52;
-                    expected_inst = encode_sw(5'd0, 5'd3, 32'sd2);
-                end
-                10: begin
-                    expected_pc = 32'd56;
-                    expected_inst = encode_lw(5'd13, 5'd0, 32'sd2);
-                end
-                11: begin
                     expected_pc = 32'd60;
                     expected_inst = encode_lui(5'd11, 20'h12345);
                     expected_rd_write = 1'b1;
                     expected_rd = 5'd11;
                     expected_rd_data = 32'h1234_5000;
                 end
-                12: begin
+                10: begin
                     expected_pc = 32'd64;
                     expected_inst = encode_auipc(5'd12, 20'h00001);
                     expected_rd_write = 1'b1;
                     expected_rd = 5'd12;
                     expected_rd_data = 32'h0000_1040;
                 end
-                13: begin
+                11: begin
                     expected_pc = 32'd68;
                     expected_inst = encode_jal(5'd0, 32'sd0);
                 end
@@ -298,6 +302,7 @@ module tb_CPU_Retire;
             retire_count = 0;
             trace_done = 1'b0;
             illegal_seen_in_id = 1'b0;
+            trap_count = 0;
         end else begin
             if (u_CPU_Top.fetch_response_valid &&
                 u_CPU_Top.fetch_response_pc == 32'd48 &&
@@ -307,9 +312,11 @@ module tb_CPU_Retire;
             if (retire_valid) begin
                 check_retire_event(retire_count);
                 retire_count = retire_count + 1;
-                if (retire_count == 14)
+                if (retire_count == 12)
                     trace_done = 1'b1;
             end
+            if (trap_valid)
+                trap_count = trap_count + 1;
         end
     end
 
@@ -320,6 +327,7 @@ module tb_CPU_Retire;
         retire_count = 0;
         trace_done = 1'b0;
         illegal_seen_in_id = 1'b0;
+        trap_count = 0;
 
         for (i = 0; i < 64; i = i + 1)
             u_CPU_Top.u_Program_Rom.memory[i] = `I_NOP;
@@ -366,6 +374,9 @@ module tb_CPU_Retire;
 
         if (!illegal_seen_in_id)
             $fatal(1, "[FAIL] illegal instruction never reached ID");
+        if (trap_count !== 3)
+            $fatal(1, "[FAIL] expected illegal/Store/Load traps, got %0d events",
+                   trap_count);
         if (u_CPU_Top.u_Data_Memory.memory[0] !== 32'd13)
             $fatal(1, "[FAIL] reference memory expected 13 actual=0x%08h",
                    u_CPU_Top.u_Data_Memory.memory[0]);
@@ -384,9 +395,9 @@ module tb_CPU_Retire;
             u_CPU_Top.read_reg(13) !== 32'd0)
             $fatal(1, "[FAIL] final architectural register state mismatch");
 
-        $display("[PASS] tb_CPU_Retire compared 14 ordered retire events.");
-        $display("[PASS] wrong-path and illegal instructions produced no retire event.");
-        $display("[PASS] misaligned Load/Store retired without side effects.");
+        $display("[PASS] tb_CPU_Retire compared 12 ordered retire events.");
+        $display("[PASS] wrong-path, illegal, and misaligned instructions produced no retire event.");
+        $display("[PASS] three precise traps were acknowledged and skipped by the test handler.");
         $finish;
     end
 

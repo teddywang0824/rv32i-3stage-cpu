@@ -10,12 +10,24 @@ module tb_CPU_JALR;
     logic [31:0] killed_response_pc;
     logic [31:0] killed_response_inst;
     integer redirect_check_count;
+    logic trap_valid;
+    logic [3:0] trap_cause;
+    logic [31:0] trap_pc;
+    logic [31:0] trap_tval;
+    integer illegal_trap_count;
+
+    wire trap_ack = trap_valid;
+    wire [31:0] trap_redirect_pc = trap_pc + 32'd4;
 
     CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst),
-        .trap_ack(1'b0),
-        .trap_redirect_pc(32'd0)
+        .trap_valid(trap_valid),
+        .trap_cause(trap_cause),
+        .trap_pc(trap_pc),
+        .trap_tval(trap_tval),
+        .trap_ack(trap_ack),
+        .trap_redirect_pc(trap_redirect_pc)
     );
 
     initial begin
@@ -41,6 +53,15 @@ module tb_CPU_JALR;
 
     always @(posedge clk) begin
         #1;
+        if (rst)
+            illegal_trap_count = 0;
+        else if (trap_valid) begin
+            illegal_trap_count = illegal_trap_count + 1;
+            if (trap_cause !== `TRAP_ILLEGAL_INSTRUCTION ||
+                trap_pc !== 32'h0000_0000 ||
+                trap_tval !== encode_illegal_jalr(5'd7, 5'd1, 32'sd0))
+                $fatal(1, "[FAIL] reserved JALR trap metadata");
+        end
         if (check_redirect_edge) begin
             if (u_CPU_Top.pc !== expected_redirect_target)
                 $fatal(1, "[FAIL] JALR redirect did not load target PC");
@@ -205,8 +226,11 @@ module tb_CPU_JALR;
             check_reg(5'd7,  32'd0, "reserved JALR funct3 does not write rd");
             check_reg(5'd26, 32'd1, "reserved JALR funct3 does not redirect");
             check_reg(5'd27, 32'd1, "reserved JALR funct3 does not flush sequential path");
+            if (illegal_trap_count !== 1)
+                $fatal(1, "[FAIL] reserved JALR expected one illegal trap, got %0d",
+                       illegal_trap_count);
 
-            $display("[PASS] reserved JALR funct3 is rejected safely");
+            $display("[PASS] reserved JALR funct3 raises one precise illegal trap");
         end
     endtask
 
@@ -214,6 +238,7 @@ module tb_CPU_JALR;
         rst = 1'b1;
         check_redirect_edge = 1'b0;
         redirect_check_count = 0;
+        illegal_trap_count = 0;
         clear_rom();
 
         // Protect the testbench's own I-type encoding.

@@ -112,6 +112,14 @@ logic        ex_trap_req_valid;
 logic [3:0]  ex_trap_req_cause;
 logic [31:0] ex_trap_req_pc;
 logic [31:0] ex_trap_req_tval;
+logic        trap_pending;
+logic        trap_redirect;
+logic [31:0] trap_target;
+logic        normal_redirect;
+logic        effective_ex_valid;
+logic        effective_ex_reg_write;
+logic        effective_ex_mem_en;
+logic        effective_ex_mem_write;
 
 logic idex_reg_write_r;
 logic [3:0] alu_op_r;
@@ -175,11 +183,6 @@ logic [3:0]  exwb_store_byte_enable_r;
 logic [31:0] load_value;
 logic load_misaligned;
 
-assign trap_valid = 1'b0;
-assign trap_cause = 4'd0;
-assign trap_pc    = 32'd0;
-assign trap_tval  = 32'd0;
-
 assign id_trap_req_valid = fetch_response_valid && !valid_inst_;
 assign id_trap_req_cause = `TRAP_ILLEGAL_INSTRUCTION;
 assign id_trap_req_tval  = fetch_response_inst;
@@ -190,12 +193,12 @@ assign fetch_response_inst  = imem_resp_inst;
 assign read_valid           = dmem_resp_valid;
 assign read_data            = dmem_resp_rdata;
 
-assign imem_req_valid = keepgoing;
+assign imem_req_valid = keepgoing && !trap_pending && !ex_trap_req_valid;
 assign imem_req_addr  = pc;
 assign imem_resp_kill = kill_fetch_response;
 
-assign dmem_req_valid       = check;
-assign dmem_req_write       = mem_write_r;
+assign dmem_req_valid       = effective_ex_mem_en && !misaligned;
+assign dmem_req_write       = effective_ex_mem_write;
 assign dmem_req_byte_enable = byte_enable;
 assign dmem_req_addr        = alu_result_;
 assign dmem_req_wdata       = aligned_write_data;
@@ -204,7 +207,9 @@ assign dmem_req_wdata       = aligned_write_data;
 // Simple PC next logic
 // CH1: no branch / jump yet, so PC simply increments by 4
 // ------------------------------------------------------------
-assign pc_next_ = branch_taken ? branch_target : pc + 32'd4;
+assign pc_next_ = trap_redirect ? trap_target
+                : normal_redirect ? branch_target
+                : pc + 32'd4;
 
 // ------------------------------------------------------------
 // CH1: no execute/write-back stage yet
@@ -228,10 +233,14 @@ end
 
 
 assign keepgoing = ~stall_;
-assign pc_write_en = keepgoing || branch_taken;
-assign kill_fetch_response = flush_IFID_ || branch_taken;
+assign normal_redirect = branch_taken && !ex_trap_req_valid && !trap_pending;
+assign pc_write_en = trap_redirect || normal_redirect
+                   || (keepgoing && !trap_pending && !ex_trap_req_valid);
+assign kill_fetch_response = flush_IFID_ || normal_redirect
+                           || ex_trap_req_valid || trap_pending;
 assign id_valid_inst = fetch_response_valid && valid_inst_;
-assign bubble_IDEX = flush_IDEX_ || stall_ || branch_taken
+assign bubble_IDEX = flush_IDEX_ || stall_ || normal_redirect
+                   || ex_trap_req_valid || trap_pending
                    || !fetch_response_valid;
 
 // assign stall_ = 1'b0; // temp
@@ -248,7 +257,11 @@ always_comb begin
     endcase
 end
 
-assign check = mem_en_r && !misaligned;
+assign effective_ex_valid     = idex_valid_inst_r && !ex_trap_req_valid;
+assign effective_ex_reg_write = idex_reg_write_r && !ex_trap_req_valid;
+assign effective_ex_mem_en    = mem_en_r && !ex_trap_req_valid;
+assign effective_ex_mem_write = mem_write_r && !ex_trap_req_valid;
+assign check = effective_ex_mem_en && !misaligned;
 
 assign rd_value_ = (exwb_mem_en_r && !exwb_mem_write_r) ? load_value : alu_result_r;
 
@@ -410,7 +423,7 @@ ALU u_ALU (
 );
 
 // A load's EX result is an address rather than its final write-back value.
-assign ex_forward_en = idex_reg_write_r && idex_valid_inst_r
+assign ex_forward_en = effective_ex_reg_write && effective_ex_valid
                      && !(mem_en_r && !mem_write_r);
 
 Forwarding_Unit u_Forwarding_Unit (
@@ -450,14 +463,14 @@ EXWB u_EXWB (
     .rst(rst),
     .alu_result_(alu_result_),
     .addr_rd_(idex_addr_rd_r),
-    .reg_write_(idex_reg_write_r),
-    .valid_inst_(idex_valid_inst_r),
+    .reg_write_(effective_ex_reg_write),
+    .valid_inst_(effective_ex_valid),
     .pc_(idex_pc_r),
     .inst_(idex_inst_r),
-    .mem_en_(mem_en_r),
-    .mem_write_(mem_write_r),
+    .mem_en_(effective_ex_mem_en),
+    .mem_write_(effective_ex_mem_write),
     .load_op_(idex_load_op_r),
-    .store_commit_(idex_valid_inst_r && check && mem_write_r),
+    .store_commit_(effective_ex_valid && check && effective_ex_mem_write),
     .store_data_(aligned_write_data),
     .store_byte_enable_(byte_enable),
 
@@ -516,6 +529,24 @@ Trap_Detect u_Trap_Detect (
     .trap_req_cause    (ex_trap_req_cause),
     .trap_req_pc       (ex_trap_req_pc),
     .trap_req_tval     (ex_trap_req_tval)
+);
+
+Trap_Unit u_Trap_Unit (
+    .clk              (clk),
+    .rst              (rst),
+    .trap_req_valid   (ex_trap_req_valid),
+    .trap_req_cause   (ex_trap_req_cause),
+    .trap_req_pc      (ex_trap_req_pc),
+    .trap_req_tval    (ex_trap_req_tval),
+    .trap_ack         (trap_ack),
+    .trap_redirect_pc (trap_redirect_pc),
+    .trap_valid       (trap_valid),
+    .trap_cause       (trap_cause),
+    .trap_pc          (trap_pc),
+    .trap_tval        (trap_tval),
+    .trap_pending     (trap_pending),
+    .trap_redirect    (trap_redirect),
+    .trap_target      (trap_target)
 );
 
 Load_Unit u_Load_Unit (
