@@ -14,7 +14,7 @@ module tb_CPU_Program;
     integer result_store_count;
     logic   saw_done_pc;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -108,7 +108,7 @@ module tb_CPU_Program;
     );
         logic [31:0] actual;
         begin
-            actual = u_CPU_Top.u_Reg_File.regs[index];
+            actual = u_CPU_Top.read_reg(index);
             if (actual !== expected)
                 $fatal(1,
                     "[FAIL] %s: x%0d expected=0x%08h actual=0x%08h",

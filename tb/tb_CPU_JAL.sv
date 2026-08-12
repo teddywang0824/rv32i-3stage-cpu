@@ -11,7 +11,7 @@ module tb_CPU_JAL;
     logic [31:0] killed_response_inst;
     integer redirect_check_count;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -101,7 +101,7 @@ module tb_CPU_JAL;
     );
         logic [31:0] actual;
         begin
-            actual = u_CPU_Top.u_Reg_File.regs[addr];
+            actual = u_CPU_Top.read_reg(addr);
             if (actual !== expected)
                 $fatal(1,
                     "[FAIL] %s: expected x%0d=0x%08h actual=0x%08h",

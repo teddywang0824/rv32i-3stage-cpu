@@ -7,7 +7,7 @@ module tb_CPU_Illegal;
     logic rst;
     logic [6:0] seen_illegal;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -108,7 +108,7 @@ module tb_CPU_Illegal;
     );
         logic [31:0] actual;
         begin
-            actual = u_CPU_Top.u_Reg_File.regs[index];
+            actual = u_CPU_Top.read_reg(index);
             if (actual !== expected)
                 $fatal(1,
                     "[FAIL] %s: x%0d expected=0x%08h actual=0x%08h",
@@ -184,11 +184,11 @@ module tb_CPU_Illegal;
         rst = 1'b0;
 
         // Sentinels make unintended register or memory writes observable.
-        u_CPU_Top.u_Reg_File.regs[3] = 32'h3333_3333;
-        u_CPU_Top.u_Reg_File.regs[4] = 32'h4444_4444;
-        u_CPU_Top.u_Reg_File.regs[5] = 32'h5555_5555;
-        u_CPU_Top.u_Reg_File.regs[6] = 32'd40;
-        u_CPU_Top.u_Reg_File.regs[7] = 32'h7777_7777;
+        u_CPU_Top.write_reg(3, 32'h3333_3333);
+        u_CPU_Top.write_reg(4, 32'h4444_4444);
+        u_CPU_Top.write_reg(5, 32'h5555_5555);
+        u_CPU_Top.write_reg(6, 32'd40);
+        u_CPU_Top.write_reg(7, 32'h7777_7777);
         u_CPU_Top.u_Data_Memory.memory[0] = 32'hDEAD_BEEF;
 
         repeat (28) @(posedge clk);

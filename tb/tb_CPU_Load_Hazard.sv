@@ -13,7 +13,7 @@ module tb_CPU_Load_Hazard;
     logic [31:0] stalled_response_inst;
     logic stalled_response_valid;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -162,7 +162,7 @@ module tb_CPU_Load_Hazard;
     );
         logic [31:0] actual;
         begin
-            actual = u_CPU_Top.u_Reg_File.regs[reg_index];
+            actual = u_CPU_Top.read_reg(reg_index);
             if (actual !== expected)
                 $fatal(1,
                     "[FAIL] %s: x%0d expected=0x%08h actual=0x%08h",
@@ -222,7 +222,7 @@ module tb_CPU_Load_Hazard;
     task automatic run_store_consumers;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[7] = 32'h1122_3344;
+            u_CPU_Top.write_reg(7, 32'h1122_3344);
             u_CPU_Top.u_Data_Memory.memory[0] = 32'hAABB_CCDD;
             u_CPU_Top.u_Data_Memory.memory[3] = 32'd16;
 
@@ -251,7 +251,7 @@ module tb_CPU_Load_Hazard;
     task automatic run_branch_consumer;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[9] = 32'd1;
+            u_CPU_Top.write_reg(9, 32'd1);
             u_CPU_Top.u_Data_Memory.memory[0] = 32'd1;
 
             u_CPU_Top.u_Program_Rom.memory[0] =

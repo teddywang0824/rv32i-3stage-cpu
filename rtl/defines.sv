@@ -5,6 +5,15 @@
 // Basic Instruction
 `define I_NOP 32'h00000013 // instruction no operation, I_NOP，使其作addi x0, x0, 0動作
 
+// RV32I Core v1.0 architectural contract constants.
+// See docs/rv32i-core-spec.md.  These constants define the target contract;
+// later milestones connect the FENCE/SYSTEM/trap constants to the datapath.
+`define RV32_XLEN            32
+`define RV32_IALIGN_BITS     32
+`define RV32_RESET_VECTOR    32'h0000_0000
+`define RV32_IMEM_WORDS      64
+`define RV32_DMEM_WORDS      1024
+
 // Opcode
 // 定義指令的操作碼，判斷"這條指令是哪一大類"
 `define Opcode_I        7'b0010011
@@ -16,6 +25,22 @@
 `define Opcode_LUI      7'b0110111 // Utype
 `define Opcode_AUIPC    7'b0010111 // Utype
 `define Opcode_JAL      7'b1101111 // Jtype
+`define Opcode_MISC_MEM 7'b0001111 // FENCE
+`define Opcode_SYSTEM   7'b1110011 // ECALL / EBREAK
+
+// Fixed encodings in the RV32I v1.0 target contract.
+`define F3_FENCE        3'b000
+`define F3_SYSTEM_PRIV  3'b000
+`define I_ECALL         32'h0000_0073
+`define I_EBREAK        32'h0010_0073
+
+// Architectural exception cause values used by the v1.0 trap contract.
+`define TRAP_INST_ADDR_MISALIGNED 4'd0
+`define TRAP_ILLEGAL_INSTRUCTION  4'd2
+`define TRAP_BREAKPOINT           4'd3
+`define TRAP_LOAD_ADDR_MISALIGNED 4'd4
+`define TRAP_STORE_ADDR_MISALIGNED 4'd6
+`define TRAP_ENV_CALL             4'd11
 
 // funct3 for I/R-type
 // 3-bit 功能碼，用來區分在同個 opcode 下，進一步分辨是哪一條指令

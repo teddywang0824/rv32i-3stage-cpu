@@ -3,7 +3,7 @@ module tb_Harzard_Observe;
     logic clk;
     logic rst;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -25,9 +25,9 @@ module tb_Harzard_Observe;
 
         #400;
 
-        $display("x21 actual = 0x%08h", u_CPU_Top.u_Reg_File.regs[21]);
-        $display("x22 actual = 0x%08h", u_CPU_Top.u_Reg_File.regs[22]);
-        $display("x23 actual = 0x%08h", u_CPU_Top.u_Reg_File.regs[23]);
+        $display("x21 actual = 0x%08h", u_CPU_Top.read_reg(21));
+        $display("x22 actual = 0x%08h", u_CPU_Top.read_reg(22));
+        $display("x23 actual = 0x%08h", u_CPU_Top.read_reg(23));
 
         $display("expected: x21=5, x22=8, x23=13");
 

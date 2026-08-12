@@ -6,7 +6,7 @@ module tb_Hazard_Observe;
     logic clk;
     logic rst;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk (clk),
         .rst (rst)
     );
@@ -44,30 +44,30 @@ module tb_Hazard_Observe;
         $display("[CHECK] forwarding integration");
         $display("          expected: x21=5, x22=8, x23=13");
         $display("          actual:   x21=%0d, x22=%0d, x23=%0d",
-            u_CPU_Top.u_Reg_File.regs[21],
-            u_CPU_Top.u_Reg_File.regs[22],
-            u_CPU_Top.u_Reg_File.regs[23]
+            u_CPU_Top.read_reg(21),
+            u_CPU_Top.read_reg(22),
+            u_CPU_Top.read_reg(23)
         );
 
         // Forwarding 完成後，三條相依指令都必須符合 architectural result。
-        if (u_CPU_Top.u_Reg_File.regs[21] !== 32'd5) begin
+        if (u_CPU_Top.read_reg(21) !== 32'd5) begin
             $fatal(1,
                 "[FAIL] producer x21 is incorrect: expected=5 actual=%0d",
-                u_CPU_Top.u_Reg_File.regs[21]
+                u_CPU_Top.read_reg(21)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[22] !== 32'd8) begin
+        if (u_CPU_Top.read_reg(22) !== 32'd8) begin
             $fatal(1,
                 "[FAIL] forwarded x22 is incorrect: expected=8 actual=%0d",
-                u_CPU_Top.u_Reg_File.regs[22]
+                u_CPU_Top.read_reg(22)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[23] !== 32'd13) begin
+        if (u_CPU_Top.read_reg(23) !== 32'd13) begin
             $fatal(1,
                 "[FAIL] forwarded x23 is incorrect: expected=13 actual=%0d",
-                u_CPU_Top.u_Reg_File.regs[23]
+                u_CPU_Top.read_reg(23)
             );
         end
 

@@ -130,6 +130,8 @@ run_load_unit_test() {
 run_cpu_test() {
   run_test tb_CPU_Top \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -152,6 +154,8 @@ run_cpu_test() {
 run_hazard_test() {
   run_test tb_Hazard_Observe \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -174,6 +178,8 @@ run_hazard_test() {
 run_branch_test() {
   run_test tb_CPU_Branch \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -196,6 +202,8 @@ run_branch_test() {
 run_jal_test() {
   run_test tb_CPU_JAL \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -218,6 +226,8 @@ run_jal_test() {
 run_jalr_test() {
   run_test tb_CPU_JALR \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -240,6 +250,8 @@ run_jalr_test() {
 run_store_test() {
   run_test tb_CPU_Store \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -262,6 +274,8 @@ run_store_test() {
 run_load_test() {
   run_test tb_CPU_Load \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -284,6 +298,8 @@ run_load_test() {
 run_load_hazard_test() {
   run_test tb_CPU_Load_Hazard \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -306,6 +322,8 @@ run_load_hazard_test() {
 run_illegal_test() {
   run_test tb_CPU_Illegal \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -328,6 +346,8 @@ run_illegal_test() {
 run_program_test() {
   run_test tb_CPU_Program \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \
@@ -350,6 +370,8 @@ run_program_test() {
 run_retire_test() {
   run_test tb_CPU_Retire \
     rtl/Controller.sv \
+    rtl/CPU_Core.sv \
+    rtl/CPU_Sim_Top.sv \
     rtl/CPU_Top.sv \
     rtl/EXWB.sv \
     rtl/IDEX.sv \

@@ -11,7 +11,7 @@ module tb_CPU_JALR;
     logic [31:0] killed_response_inst;
     integer redirect_check_count;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -103,7 +103,7 @@ module tb_CPU_JALR;
     );
         logic [31:0] actual;
         begin
-            actual = u_CPU_Top.u_Reg_File.regs[addr];
+            actual = u_CPU_Top.read_reg(addr);
             if (actual !== expected)
                 $fatal(1,
                     "[FAIL] %s: expected x%0d=0x%08h actual=0x%08h",
@@ -145,7 +145,7 @@ module tb_CPU_JALR;
             begin_case();
 
             // JALR is at PC=8: (x2=32) + (-12) = target PC=20, link=12.
-            u_CPU_Top.u_Reg_File.regs[2] = 32'd32;
+            u_CPU_Top.write_reg(2, 32'd32);
             u_CPU_Top.u_Program_Rom.memory[0] = `I_NOP;
             u_CPU_Top.u_Program_Rom.memory[1] = `I_NOP;
             u_CPU_Top.u_Program_Rom.memory[2] = encode_jalr(5'd6, 5'd2, -32'sd12);
@@ -169,7 +169,7 @@ module tb_CPU_JALR;
         begin
             begin_case();
 
-            u_CPU_Top.u_Reg_File.regs[3] = 32'd13;
+            u_CPU_Top.write_reg(3, 32'd13);
             u_CPU_Top.u_Program_Rom.memory[0] = encode_jalr(5'd0, 5'd3, 32'sd0);
             u_CPU_Top.u_Program_Rom.memory[1] = encode_addi(5'd26, 5'd0, 32'sd1);
             u_CPU_Top.u_Program_Rom.memory[2] = encode_addi(5'd27, 5'd0, 32'sd1);
@@ -191,7 +191,7 @@ module tb_CPU_JALR;
         begin
             begin_case();
 
-            u_CPU_Top.u_Reg_File.regs[1] = 32'd20;
+            u_CPU_Top.write_reg(1, 32'd20);
             u_CPU_Top.u_Program_Rom.memory[0] =
                 encode_illegal_jalr(5'd7, 5'd1, 32'sd0);
             u_CPU_Top.u_Program_Rom.memory[1] = encode_addi(5'd26, 5'd0, 32'sd1);

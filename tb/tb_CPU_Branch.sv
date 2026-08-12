@@ -11,7 +11,7 @@ module tb_CPU_Branch;
     logic [31:0] killed_response_inst;
     integer redirect_check_count;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -109,8 +109,8 @@ module tb_CPU_Branch;
 
             // Branch operands 在每個案例中保持不變；不讓 setup 指令與 branch
             // forwarding 混在同一個測試目的中。
-            u_CPU_Top.u_Reg_File.regs[1] = lhs;
-            u_CPU_Top.u_Reg_File.regs[2] = rhs;
+            u_CPU_Top.write_reg(1, lhs);
+            u_CPU_Top.write_reg(2, rhs);
         end
     endtask
 
@@ -122,16 +122,16 @@ module tb_CPU_Branch;
         begin
             expected = expected_to_execute ? 32'd1 : 32'd0;
 
-            if (u_CPU_Top.u_Reg_File.regs[26] !== expected)
+            if (u_CPU_Top.read_reg(26) !== expected)
                 $fatal(1,
                     "[FAIL] %s first younger instruction: expected x26=%0d actual=%0d",
-                    test_name, expected, u_CPU_Top.u_Reg_File.regs[26]
+                    test_name, expected, u_CPU_Top.read_reg(26)
                 );
 
-            if (u_CPU_Top.u_Reg_File.regs[27] !== expected)
+            if (u_CPU_Top.read_reg(27) !== expected)
                 $fatal(1,
                     "[FAIL] %s second younger instruction: expected x27=%0d actual=%0d",
-                    test_name, expected, u_CPU_Top.u_Reg_File.regs[27]
+                    test_name, expected, u_CPU_Top.read_reg(27)
                 );
         end
     endtask
@@ -163,7 +163,7 @@ module tb_CPU_Branch;
 
             check_wrong_path_registers(!expected_taken, test_name);
 
-            if (u_CPU_Top.u_Reg_File.regs[28] !== 32'd7)
+            if (u_CPU_Top.read_reg(28) !== 32'd7)
                 $fatal(1,
                     "[FAIL] %s forward target PC=12 was not executed",
                     test_name

@@ -6,7 +6,7 @@ module tb_CPU_Load;
     logic clk;
     logic rst;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -80,7 +80,7 @@ module tb_CPU_Load;
     );
         logic [31:0] actual;
         begin
-            actual = u_CPU_Top.u_Reg_File.regs[reg_index];
+            actual = u_CPU_Top.read_reg(reg_index);
             if (actual !== expected)
                 $fatal(1,
                     "[FAIL] %s: x%0d expected=0x%08h actual=0x%08h",
@@ -92,7 +92,7 @@ module tb_CPU_Load;
     task automatic run_sizes_offsets_and_extensions;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[1] = 32'd0;
+            u_CPU_Top.write_reg(1, 32'd0);
             u_CPU_Top.u_Data_Memory.memory[0] = 32'h80FF_7F01;
 
             // Consecutive requests also verify that address, rd, load_op and
@@ -127,7 +127,7 @@ module tb_CPU_Load;
     task automatic run_address_and_writeback_sequence;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[1] = 32'd16;
+            u_CPU_Top.write_reg(1, 32'd16);
             u_CPU_Top.u_Data_Memory.memory[3] = 32'hCAFE_BABE;
             u_CPU_Top.u_Data_Memory.memory[8] = 32'h1122_3344;
 
@@ -153,9 +153,9 @@ module tb_CPU_Load;
     task automatic run_misaligned_suppression;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[1]  = 32'd0;
-            u_CPU_Top.u_Reg_File.regs[14] = 32'hAAAA_AAAA;
-            u_CPU_Top.u_Reg_File.regs[15] = 32'hBBBB_BBBB;
+            u_CPU_Top.write_reg(1, 32'd0);
+            u_CPU_Top.write_reg(14, 32'hAAAA_AAAA);
+            u_CPU_Top.write_reg(15, 32'hBBBB_BBBB);
             u_CPU_Top.u_Data_Memory.memory[0] = 32'h89AB_CDEF;
 
             u_CPU_Top.u_Program_Rom.memory[0] = encode_load(`F3_LH, 5'd14, 5'd1, 32'sd1);
@@ -176,8 +176,8 @@ module tb_CPU_Load;
     task automatic run_flush_case;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[17] = 32'h1717_1717;
-            u_CPU_Top.u_Reg_File.regs[18] = 32'h1818_1818;
+            u_CPU_Top.write_reg(17, 32'h1717_1717);
+            u_CPU_Top.write_reg(18, 32'h1818_1818);
             u_CPU_Top.u_Data_Memory.memory[0] = 32'hAAAA_0000;
             u_CPU_Top.u_Data_Memory.memory[1] = 32'hBBBB_0001;
             u_CPU_Top.u_Data_Memory.memory[2] = 32'hCCCC_0002;
@@ -201,7 +201,7 @@ module tb_CPU_Load;
     task automatic run_illegal_and_x0_case;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[20] = 32'h2020_2020;
+            u_CPU_Top.write_reg(20, 32'h2020_2020);
             u_CPU_Top.u_Data_Memory.memory[0] = 32'hDEAD_BEEF;
 
             u_CPU_Top.u_Program_Rom.memory[0] = encode_load(`F3_LW, 5'd0, 5'd0, 32'sd0);

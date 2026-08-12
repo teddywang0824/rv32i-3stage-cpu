@@ -4,6 +4,8 @@
 
 目前設計適合用來學習 CPU datapath、pipeline control 與驗證方法；它還不是可直接 tape-out 的完整 RISC-V SoC。
 
+RV32I Core v1.0 的完整 ISA、reset、memory、trap 與 retire 契約，以及 40 條指令的逐項驗證矩陣，請見 [`docs/rv32i-core-spec.md`](docs/rv32i-core-spec.md)。該文件描述最終 v1.0 目標；本 README 描述目前已實作狀態。
+
 ## 快速開始
 
 開發環境：
@@ -45,17 +47,28 @@ sudo apt install iverilog
 
 ```mermaid
 flowchart LR
-    PC["PC / fetch request"] --> IMEM["IF: synchronous Program_ROM"]
-    IMEM -->|"response_valid + PC + instruction"| ID["ID: decode + Reg File + forwarding + hazard"]
-    ID --> IDEX["ID/EX register"]
-    IDEX --> EX["EX: ALU + Branch/Jump + memory request"]
-    EX --> EXWB["EX/WB register"]
-    EXWB --> WB["MEM/WB: load response + register writeback"]
-    WB --> RF["Register File"]
-    RF --> ID
+    subgraph CORE["CPU_Core"]
+        PC["PC"] --> IFPORT["instruction request port"]
+        ID["ID: decode + Reg File + hazard"] --> IDEX["ID/EX register"]
+        IDEX --> EX["EX: ALU + Branch/Jump + data request"]
+        EX --> EXWB["EX/WB register"]
+        EXWB --> WB["MEM/WB: load response + writeback"]
+        WB --> RF["Register File"]
+        RF --> ID
+    end
+    subgraph SIM["CPU_Sim_Top"]
+        IMEM["synchronous Program_ROM"]
+        DMEM["synchronous Data_Memory"]
+    end
+    IFPORT -->|"request"| IMEM
+    IMEM -->|"valid + PC + instruction"| ID
+    EX -->|"request"| DMEM
+    DMEM -->|"valid + read data"| WB
 ```
 
-`Program_ROM` 的 response register 同時形成 fetch 與 ID 的邊界，因此 `CPU_Top` 不再實例化獨立 `IFID`。`IFID.sv` 仍保留單元測試，作為 pipeline register 練習與未來不同 memory latency 的備選元件。
+`Program_ROM` 的 response register 同時形成 fetch 與 ID 的邊界，因此 `CPU_Core` 不再實例化獨立 `IFID`。`IFID.sv` 仍保留單元測試，作為 pipeline register 練習與未來不同 memory latency 的備選元件。
+
+`CPU_Core` 只包含 datapath、control、pipeline registers 與 Register File，透過明確的 instruction/data request-response ports 存取外部 memory。`CPU_Sim_Top` 接回現有 `Program_ROM` 與 `Data_Memory`；`CPU_Top` 只保留為舊介面的相容 wrapper。正式 synthesis 應以 `CPU_Core` 為 top。
 
 ### 每級職責
 
@@ -99,7 +112,7 @@ flowchart TD
 - reset 或 `kill_response` 使 response invalid
 - `kill_response` 與 fetch 同時發生時，kill 優先
 
-各 CPU testbench 會在解除 reset 前直接載入 `u_Program_Rom.memory[]`。未來替換 SRAM IP 時，wrapper 應維持相同 transaction contract。
+各 CPU testbench 會在解除 reset 前直接載入 `CPU_Sim_Top.u_Program_Rom.memory[]`。未來替換 SRAM IP 時，只需修改 wrapper 並維持相同 transaction contract，不需修改 `CPU_Core`。
 
 ### Data Memory
 
@@ -113,6 +126,8 @@ flowchart TD
 目前沒有 bus protocol、cache、MMU、memory protection 或 wait-state/backpressure。有效使用範圍是測試模型定義的低位址 memory window。
 
 ## 支援的指令
+
+目前 RTL 已實作下列 37 條。v1.0 契約另包含尚待後續里程碑實作的 FENCE、ECALL 與 EBREAK。
 
 | 類型 | 指令 |
 |---|---|
@@ -151,7 +166,9 @@ flowchart TD
 
 | 檔案 | 職責 |
 |---|---|
-| `rtl/CPU_Top.sv` | 整合 datapath、pipeline control、memory 與 retire interface |
+| `rtl/CPU_Core.sv` | 可獨立合成的 datapath/control/register file；提供 instruction/data memory transaction ports 與 retire interface |
+| `rtl/CPU_Sim_Top.sv` | simulation wrapper；實例化 CPU_Core、Program_ROM、Data_Memory 與集中式 debug helpers |
+| `rtl/CPU_Top.sv` | 保留既有外部介面的相容 wrapper；內部轉接 CPU_Sim_Top |
 | `rtl/PC.sv` | PC reset、hold 與 next-PC capture |
 | `rtl/Program_ROM.sv` | 同步 instruction response model |
 | `rtl/Inst_Decoder.sv` | instruction fields 與 I/S/B/U/J immediate |
@@ -215,4 +232,3 @@ flowchart TD
 3. Exception、interrupt、misalignment trap 與 machine-mode CSR。
 4. 可載入 ELF 的軟體流程，以及 Spike/QEMU differential testing。
 5. Lint、synthesis constraints、STA、formal checks 與 physical-design flow。
-

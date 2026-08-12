@@ -10,7 +10,7 @@ module tb_CPU_Top ;
     logic saw_x24_write;
     logic saw_x25_write;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -91,37 +91,37 @@ module tb_CPU_Top ;
 
         #300;
 
-        if (u_CPU_Top.u_Reg_File.regs[1] !== 32'hFFFF_FFFB) begin
+        if (u_CPU_Top.read_reg(1) !== 32'hFFFF_FFFB) begin
             $fatal(1,
                 "[FAIL] x1: expected=0x%08h actual=0x%08h",
                 32'hFFFF_FFFB,
-                u_CPU_Top.u_Reg_File.regs[1]
+                u_CPU_Top.read_reg(1)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[2] !== 32'h0000_0001) begin
+        if (u_CPU_Top.read_reg(2) !== 32'h0000_0001) begin
             $fatal(1,
                 "[FAIL] x2: expected=0x%08h actual=0x%08h",
                 32'h0000_0001,
-                u_CPU_Top.u_Reg_File.regs[2]
+                u_CPU_Top.read_reg(2)
             );
         end
 
         // slti x3, x0, 6：有號比較 0 < 6，結果應為 1。
-        if (u_CPU_Top.u_Reg_File.regs[3] !== 32'h0000_0001) begin
+        if (u_CPU_Top.read_reg(3) !== 32'h0000_0001) begin
             $fatal(1,
                 "[FAIL] x3 (SLTI): expected=0x%08h actual=0x%08h",
                 32'h0000_0001,
-                u_CPU_Top.u_Reg_File.regs[3]
+                u_CPU_Top.read_reg(3)
             );
         end
 
         // sltiu x4, x1, 6：0xFFFF_FFFB 作無號數時大於 6，結果應為 0。
-        if (u_CPU_Top.u_Reg_File.regs[4] !== 32'h0000_0000) begin
+        if (u_CPU_Top.read_reg(4) !== 32'h0000_0000) begin
             $fatal(1,
                 "[FAIL] x4 (SLTIU): expected=0x%08h actual=0x%08h",
                 32'h0000_0000,
-                u_CPU_Top.u_Reg_File.regs[4]
+                u_CPU_Top.read_reg(4)
             );
         end
 
@@ -130,97 +130,97 @@ module tb_CPU_Top ;
         end
 
         // andi x5, x2, 2047：1 & 2047，結果應為 1。
-        if (u_CPU_Top.u_Reg_File.regs[5] !== 32'h0000_0001) begin
+        if (u_CPU_Top.read_reg(5) !== 32'h0000_0001) begin
             $fatal(1,
                 "[FAIL] x5 (ANDI): expected=0x%08h actual=0x%08h",
                 32'h0000_0001,
-                u_CPU_Top.u_Reg_File.regs[5]
+                u_CPU_Top.read_reg(5)
             );
         end
 
         // xori x6, x0, -1：0 XOR 0xFFFF_FFFF。
-        if (u_CPU_Top.u_Reg_File.regs[6] !== 32'hFFFF_FFFF) begin
+        if (u_CPU_Top.read_reg(6) !== 32'hFFFF_FFFF) begin
             $fatal(1,
                 "[FAIL] x6 (XORI): expected=0x%08h actual=0x%08h",
                 32'hFFFF_FFFF,
-                u_CPU_Top.u_Reg_File.regs[6]
+                u_CPU_Top.read_reg(6)
             );
         end
 
         // ori x7, x0, 0x55：0 OR 0x55。
-        if (u_CPU_Top.u_Reg_File.regs[7] !== 32'h0000_0055) begin
+        if (u_CPU_Top.read_reg(7) !== 32'h0000_0055) begin
             $fatal(1,
                 "[FAIL] x7 (ORI): expected=0x%08h actual=0x%08h",
                 32'h0000_0055,
-                u_CPU_Top.u_Reg_File.regs[7]
+                u_CPU_Top.read_reg(7)
             );
         end
 
         // slli x8, x2, 4：1 << 4。
-        if (u_CPU_Top.u_Reg_File.regs[8] !== 32'h0000_0010) begin
+        if (u_CPU_Top.read_reg(8) !== 32'h0000_0010) begin
             $fatal(1,
                 "[FAIL] x8 (SLLI): expected=0x%08h actual=0x%08h",
                 32'h0000_0010,
-                u_CPU_Top.u_Reg_File.regs[8]
+                u_CPU_Top.read_reg(8)
             );
         end
 
         // srli x9, x6, 4：0xFFFF_FFFF 邏輯右移 4 位。
-        if (u_CPU_Top.u_Reg_File.regs[9] !== 32'h0FFF_FFFF) begin
+        if (u_CPU_Top.read_reg(9) !== 32'h0FFF_FFFF) begin
             $fatal(1,
                 "[FAIL] x9 (SRLI): expected=0x%08h actual=0x%08h",
                 32'h0FFF_FFFF,
-                u_CPU_Top.u_Reg_File.regs[9]
+                u_CPU_Top.read_reg(9)
             );
         end
 
         // srai x10, x6, 4：0xFFFF_FFFF 算術右移仍為 -1。
-        if (u_CPU_Top.u_Reg_File.regs[10] !== 32'hFFFF_FFFF) begin
+        if (u_CPU_Top.read_reg(10) !== 32'hFFFF_FFFF) begin
             $fatal(1,
                 "[FAIL] x10 (SRAI): expected=0x%08h actual=0x%08h",
                 32'hFFFF_FFFF,
-                u_CPU_Top.u_Reg_File.regs[10]
+                u_CPU_Top.read_reg(10)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[11] !== 32'h0000_0011) begin
+        if (u_CPU_Top.read_reg(11) !== 32'h0000_0011) begin
             $fatal(1,
                 "[FAIL] x11 (ADD): expected=0x%08h actual=0x%08h",
                 32'h0000_0011,
-                u_CPU_Top.u_Reg_File.regs[11]
+                u_CPU_Top.read_reg(11)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[12] !== 32'hFFFF_FFF1) begin
+        if (u_CPU_Top.read_reg(12) !== 32'hFFFF_FFF1) begin
             $fatal(1,
                 "[FAIL] x12 (SUB): expected=0x%08h actual=0x%08h",
                 32'hFFFF_FFF1,
-                u_CPU_Top.u_Reg_File.regs[12]
+                u_CPU_Top.read_reg(12)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[13] !== 32'h0000_0002) begin
+        if (u_CPU_Top.read_reg(13) !== 32'h0000_0002) begin
             $fatal(1,
                 "[FAIL] x13 (SLL): expected=0x%08h actual=0x%08h",
                 32'h0000_0002,
-                u_CPU_Top.u_Reg_File.regs[13]
+                u_CPU_Top.read_reg(13)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[14] !== 32'h0000_0001) begin
+        if (u_CPU_Top.read_reg(14) !== 32'h0000_0001) begin
             $fatal(1,
                 "[FAIL] x14 (SLT): expected=0x%08h actual=0x%08h",
                 32'h0000_0001,
-                u_CPU_Top.u_Reg_File.regs[14]
+                u_CPU_Top.read_reg(14)
             );
         end
 
         // x1 的 bit pattern 以 unsigned 解讀時大於 x2，因此 SLTU 結果為 0。
-        if (u_CPU_Top.u_Reg_File.regs[15] !== 32'h0000_0000) begin
+        if (u_CPU_Top.read_reg(15) !== 32'h0000_0000) begin
             $fatal(1,
                 "[FAIL] x15 (SLTU): expected=0x%08h actual=0x%08h",
                 32'h0000_0000,
-                u_CPU_Top.u_Reg_File.regs[15]
+                u_CPU_Top.read_reg(15)
             );
         end
 
@@ -228,52 +228,52 @@ module tb_CPU_Top ;
             $fatal(1, "[FAIL] x15 (SLTU) never reached write-back");
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[16] !== 32'hFFFF_FFAA) begin
+        if (u_CPU_Top.read_reg(16) !== 32'hFFFF_FFAA) begin
             $fatal(1,
                 "[FAIL] x16 (XOR): expected=0x%08h actual=0x%08h",
                 32'hFFFF_FFAA,
-                u_CPU_Top.u_Reg_File.regs[16]
+                u_CPU_Top.read_reg(16)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[17] !== 32'h7FFF_FFFF) begin
+        if (u_CPU_Top.read_reg(17) !== 32'h7FFF_FFFF) begin
             $fatal(1,
                 "[FAIL] x17 (SRL): expected=0x%08h actual=0x%08h",
                 32'h7FFF_FFFF,
-                u_CPU_Top.u_Reg_File.regs[17]
+                u_CPU_Top.read_reg(17)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[18] !== 32'hFFFF_FFFF) begin
+        if (u_CPU_Top.read_reg(18) !== 32'hFFFF_FFFF) begin
             $fatal(1,
                 "[FAIL] x18 (SRA): expected=0x%08h actual=0x%08h",
                 32'hFFFF_FFFF,
-                u_CPU_Top.u_Reg_File.regs[18]
+                u_CPU_Top.read_reg(18)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[19] !== 32'h0000_0055) begin
+        if (u_CPU_Top.read_reg(19) !== 32'h0000_0055) begin
             $fatal(1,
                 "[FAIL] x19 (OR): expected=0x%08h actual=0x%08h",
                 32'h0000_0055,
-                u_CPU_Top.u_Reg_File.regs[19]
+                u_CPU_Top.read_reg(19)
             );
         end
 
-        if (u_CPU_Top.u_Reg_File.regs[20] !== 32'h0000_0010) begin
+        if (u_CPU_Top.read_reg(20) !== 32'h0000_0010) begin
             $fatal(1,
                 "[FAIL] x20 (AND): expected=0x%08h actual=0x%08h",
                 32'h0000_0010,
-                u_CPU_Top.u_Reg_File.regs[20]
+                u_CPU_Top.read_reg(20)
             );
         end
 
         // LUI 必須忽略 rs1 欄位，將 U-immediate 原樣寫回。
-        if (u_CPU_Top.u_Reg_File.regs[24] !== 32'h1234_5000) begin
+        if (u_CPU_Top.read_reg(24) !== 32'h1234_5000) begin
             $fatal(1,
                 "[FAIL] x24 (LUI): expected=0x%08h actual=0x%08h",
                 32'h1234_5000,
-                u_CPU_Top.u_Reg_File.regs[24]
+                u_CPU_Top.read_reg(24)
             );
         end
 
@@ -281,46 +281,46 @@ module tb_CPU_Top ;
             $fatal(1, "[FAIL] x24 (LUI) never reached write-back");
 
         // AUIPC 位於 PC=0x60，因此結果必須是 0x60 + 0x1000。
-        if (u_CPU_Top.u_Reg_File.regs[25] !== 32'h0000_1060) begin
+        if (u_CPU_Top.read_reg(25) !== 32'h0000_1060) begin
             $fatal(1,
                 "[FAIL] x25 (AUIPC): expected=0x%08h actual=0x%08h",
                 32'h0000_1060,
-                u_CPU_Top.u_Reg_File.regs[25]
+                u_CPU_Top.read_reg(25)
             );
         end
 
         if (saw_x25_write !== 1'b1)
             $fatal(1, "[FAIL] x25 (AUIPC) never reached write-back");
 
-        if (u_CPU_Top.u_Reg_File.regs[0] !== 32'h0000_0000) begin
+        if (u_CPU_Top.read_reg(0) !== 32'h0000_0000) begin
             $fatal(1,
                 "[FAIL] x0 must remain zero: actual=0x%08h",
-                u_CPU_Top.u_Reg_File.regs[0]
+                u_CPU_Top.read_reg(0)
             );
         end
 
-        $display("[PASS] x1 = 0x%08h", u_CPU_Top.u_Reg_File.regs[1]);
-        $display("[PASS] x2 = 0x%08h", u_CPU_Top.u_Reg_File.regs[2]);
-        $display("[PASS] x3 = 0x%08h (SLTI)", u_CPU_Top.u_Reg_File.regs[3]);
-        $display("[PASS] x4 = 0x%08h (SLTIU)", u_CPU_Top.u_Reg_File.regs[4]);
-        $display("[PASS] x5 = 0x%08h (ANDI)", u_CPU_Top.u_Reg_File.regs[5]);
-        $display("[PASS] x6 = 0x%08h (XORI)", u_CPU_Top.u_Reg_File.regs[6]);
-        $display("[PASS] x7 = 0x%08h (ORI)", u_CPU_Top.u_Reg_File.regs[7]);
-        $display("[PASS] x8 = 0x%08h (SLLI)", u_CPU_Top.u_Reg_File.regs[8]);
-        $display("[PASS] x9 = 0x%08h (SRLI)", u_CPU_Top.u_Reg_File.regs[9]);
-        $display("[PASS] x10 = 0x%08h (SRAI)", u_CPU_Top.u_Reg_File.regs[10]);
-        $display("[PASS] x11 = 0x%08h (ADD)", u_CPU_Top.u_Reg_File.regs[11]);
-        $display("[PASS] x12 = 0x%08h (SUB)", u_CPU_Top.u_Reg_File.regs[12]);
-        $display("[PASS] x13 = 0x%08h (SLL)", u_CPU_Top.u_Reg_File.regs[13]);
-        $display("[PASS] x14 = 0x%08h (SLT)", u_CPU_Top.u_Reg_File.regs[14]);
-        $display("[PASS] x15 = 0x%08h (SLTU, write-back observed)", u_CPU_Top.u_Reg_File.regs[15]);
-        $display("[PASS] x16 = 0x%08h (XOR)", u_CPU_Top.u_Reg_File.regs[16]);
-        $display("[PASS] x17 = 0x%08h (SRL)", u_CPU_Top.u_Reg_File.regs[17]);
-        $display("[PASS] x18 = 0x%08h (SRA)", u_CPU_Top.u_Reg_File.regs[18]);
-        $display("[PASS] x19 = 0x%08h (OR)", u_CPU_Top.u_Reg_File.regs[19]);
-        $display("[PASS] x20 = 0x%08h (AND)", u_CPU_Top.u_Reg_File.regs[20]);
-        $display("[PASS] x24 = 0x%08h (LUI)", u_CPU_Top.u_Reg_File.regs[24]);
-        $display("[PASS] x25 = 0x%08h (AUIPC at PC 0x00000060)", u_CPU_Top.u_Reg_File.regs[25]);
+        $display("[PASS] x1 = 0x%08h", u_CPU_Top.read_reg(1));
+        $display("[PASS] x2 = 0x%08h", u_CPU_Top.read_reg(2));
+        $display("[PASS] x3 = 0x%08h (SLTI)", u_CPU_Top.read_reg(3));
+        $display("[PASS] x4 = 0x%08h (SLTIU)", u_CPU_Top.read_reg(4));
+        $display("[PASS] x5 = 0x%08h (ANDI)", u_CPU_Top.read_reg(5));
+        $display("[PASS] x6 = 0x%08h (XORI)", u_CPU_Top.read_reg(6));
+        $display("[PASS] x7 = 0x%08h (ORI)", u_CPU_Top.read_reg(7));
+        $display("[PASS] x8 = 0x%08h (SLLI)", u_CPU_Top.read_reg(8));
+        $display("[PASS] x9 = 0x%08h (SRLI)", u_CPU_Top.read_reg(9));
+        $display("[PASS] x10 = 0x%08h (SRAI)", u_CPU_Top.read_reg(10));
+        $display("[PASS] x11 = 0x%08h (ADD)", u_CPU_Top.read_reg(11));
+        $display("[PASS] x12 = 0x%08h (SUB)", u_CPU_Top.read_reg(12));
+        $display("[PASS] x13 = 0x%08h (SLL)", u_CPU_Top.read_reg(13));
+        $display("[PASS] x14 = 0x%08h (SLT)", u_CPU_Top.read_reg(14));
+        $display("[PASS] x15 = 0x%08h (SLTU, write-back observed)", u_CPU_Top.read_reg(15));
+        $display("[PASS] x16 = 0x%08h (XOR)", u_CPU_Top.read_reg(16));
+        $display("[PASS] x17 = 0x%08h (SRL)", u_CPU_Top.read_reg(17));
+        $display("[PASS] x18 = 0x%08h (SRA)", u_CPU_Top.read_reg(18));
+        $display("[PASS] x19 = 0x%08h (OR)", u_CPU_Top.read_reg(19));
+        $display("[PASS] x20 = 0x%08h (AND)", u_CPU_Top.read_reg(20));
+        $display("[PASS] x24 = 0x%08h (LUI)", u_CPU_Top.read_reg(24));
+        $display("[PASS] x25 = 0x%08h (AUIPC at PC 0x00000060)", u_CPU_Top.read_reg(25));
         $display("[PASS] x0 remains zero");
         $display("[PASS] tb_CPU_Top completed.");
         $finish;

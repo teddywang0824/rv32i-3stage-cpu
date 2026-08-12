@@ -6,7 +6,7 @@ module tb_CPU_Store;
     logic clk;
     logic rst;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk(clk),
         .rst(rst)
     );
@@ -98,10 +98,10 @@ module tb_CPU_Store;
     task automatic run_store_sizes_and_offsets;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[1] = 32'd0;
-            u_CPU_Top.u_Reg_File.regs[2] = 32'h0000_00D4;
-            u_CPU_Top.u_Reg_File.regs[3] = 32'h0000_BEEF;
-            u_CPU_Top.u_Reg_File.regs[4] = 32'h1234_5678;
+            u_CPU_Top.write_reg(1, 32'd0);
+            u_CPU_Top.write_reg(2, 32'h0000_00D4);
+            u_CPU_Top.write_reg(3, 32'h0000_BEEF);
+            u_CPU_Top.write_reg(4, 32'h1234_5678);
 
             u_CPU_Top.u_Program_Rom.memory[0] = encode_store(`F3_SB, 5'd1, 5'd2, 32'sd0);
             u_CPU_Top.u_Program_Rom.memory[1] = encode_store(`F3_SB, 5'd1, 5'd2, 32'sd1);
@@ -117,10 +117,10 @@ module tb_CPU_Store;
             check_memory_word(0, 32'hD4D4_D4D4, "SB covers all four byte offsets");
             check_memory_word(1, 32'hBEEF_BEEF, "SH covers both aligned halfword offsets");
             check_memory_word(2, 32'h1234_5678, "SW stores complete word");
-            if (u_CPU_Top.u_Reg_File.regs[1] !== 32'd0 ||
-                u_CPU_Top.u_Reg_File.regs[2] !== 32'h0000_00D4 ||
-                u_CPU_Top.u_Reg_File.regs[3] !== 32'h0000_BEEF ||
-                u_CPU_Top.u_Reg_File.regs[4] !== 32'h1234_5678)
+            if (u_CPU_Top.read_reg(1) !== 32'd0 ||
+                u_CPU_Top.read_reg(2) !== 32'h0000_00D4 ||
+                u_CPU_Top.read_reg(3) !== 32'h0000_BEEF ||
+                u_CPU_Top.read_reg(4) !== 32'h1234_5678)
                 $fatal(1, "[FAIL] Store instruction unexpectedly wrote Register File");
 
             $display("[PASS] CPU Store sizes, offsets, and no register write-back");
@@ -130,8 +130,8 @@ module tb_CPU_Store;
     task automatic run_negative_immediate;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[1] = 32'd16;
-            u_CPU_Top.u_Reg_File.regs[2] = 32'hCAFE_BABE;
+            u_CPU_Top.write_reg(1, 32'd16);
+            u_CPU_Top.write_reg(2, 32'hCAFE_BABE);
             u_CPU_Top.u_Program_Rom.memory[0] =
                 encode_store(`F3_SW, 5'd1, 5'd2, -32'sd4);
 
@@ -146,7 +146,7 @@ module tb_CPU_Store;
     task automatic run_store_forwarding;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[2] = 32'h0000_00D4;
+            u_CPU_Top.write_reg(2, 32'h0000_00D4);
 
             // The first SB needs rs1 forwarding; the second needs rs2 forwarding.
             u_CPU_Top.u_Program_Rom.memory[0] = encode_addi(5'd1, 5'd0, 32'sd32);
@@ -165,8 +165,8 @@ module tb_CPU_Store;
     task automatic run_misaligned_suppression;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[1] = 32'd0;
-            u_CPU_Top.u_Reg_File.regs[2] = 32'h1122_3344;
+            u_CPU_Top.write_reg(1, 32'd0);
+            u_CPU_Top.write_reg(2, 32'h1122_3344);
             u_CPU_Top.u_Data_Memory.memory[0] = 32'hCAFE_BABE;
 
             u_CPU_Top.u_Program_Rom.memory[0] = encode_store(`F3_SH, 5'd1, 5'd2, 32'sd1);
@@ -183,7 +183,7 @@ module tb_CPU_Store;
     task automatic run_flush_case;
         begin
             begin_case();
-            u_CPU_Top.u_Reg_File.regs[2] = 32'h89AB_CDEF;
+            u_CPU_Top.write_reg(2, 32'h89AB_CDEF);
 
             u_CPU_Top.u_Program_Rom.memory[0] = encode_jal(5'd0, 32'sd12);
             u_CPU_Top.u_Program_Rom.memory[1] = encode_store(`F3_SW, 5'd0, 5'd2, 32'sd0);

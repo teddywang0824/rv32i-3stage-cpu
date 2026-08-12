@@ -1,3 +1,4 @@
 build/
 tmp/
-ppt/
+docs/*
+!docs/rv32i-core-spec.md

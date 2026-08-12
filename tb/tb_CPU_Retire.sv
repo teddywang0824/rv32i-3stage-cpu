@@ -21,7 +21,7 @@ module tb_CPU_Retire;
     logic trace_done;
     logic illegal_seen_in_id;
 
-    CPU_Top u_CPU_Top (
+    CPU_Sim_Top u_CPU_Top (
         .clk                    (clk),
         .rst                    (rst),
         .retire_valid           (retire_valid),
@@ -367,19 +367,19 @@ module tb_CPU_Retire;
         if (u_CPU_Top.u_Data_Memory.memory[0] !== 32'd13)
             $fatal(1, "[FAIL] reference memory expected 13 actual=0x%08h",
                    u_CPU_Top.u_Data_Memory.memory[0]);
-        if (u_CPU_Top.u_Reg_File.regs[1] !== 32'd5 ||
-            u_CPU_Top.u_Reg_File.regs[2] !== 32'd8 ||
-            u_CPU_Top.u_Reg_File.regs[3] !== 32'd13 ||
-            u_CPU_Top.u_Reg_File.regs[4] !== 32'd13 ||
-            u_CPU_Top.u_Reg_File.regs[5] !== 32'd0 ||
-            u_CPU_Top.u_Reg_File.regs[6] !== 32'd32 ||
-            u_CPU_Top.u_Reg_File.regs[7] !== 32'd0 ||
-            u_CPU_Top.u_Reg_File.regs[8] !== 32'd49 ||
-            u_CPU_Top.u_Reg_File.regs[9] !== 32'd44 ||
-            u_CPU_Top.u_Reg_File.regs[10] !== 32'd0 ||
-            u_CPU_Top.u_Reg_File.regs[11] !== 32'h1234_5000 ||
-            u_CPU_Top.u_Reg_File.regs[12] !== 32'h0000_1040 ||
-            u_CPU_Top.u_Reg_File.regs[13] !== 32'd0)
+        if (u_CPU_Top.read_reg(1) !== 32'd5 ||
+            u_CPU_Top.read_reg(2) !== 32'd8 ||
+            u_CPU_Top.read_reg(3) !== 32'd13 ||
+            u_CPU_Top.read_reg(4) !== 32'd13 ||
+            u_CPU_Top.read_reg(5) !== 32'd0 ||
+            u_CPU_Top.read_reg(6) !== 32'd32 ||
+            u_CPU_Top.read_reg(7) !== 32'd0 ||
+            u_CPU_Top.read_reg(8) !== 32'd49 ||
+            u_CPU_Top.read_reg(9) !== 32'd44 ||
+            u_CPU_Top.read_reg(10) !== 32'd0 ||
+            u_CPU_Top.read_reg(11) !== 32'h1234_5000 ||
+            u_CPU_Top.read_reg(12) !== 32'h0000_1040 ||
+            u_CPU_Top.read_reg(13) !== 32'd0)
             $fatal(1, "[FAIL] final architectural register state mismatch");
 
         $display("[PASS] tb_CPU_Retire compared 14 ordered retire events.");

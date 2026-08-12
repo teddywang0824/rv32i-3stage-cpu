@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="依照目前 SystemVerilog 專案規劃的 RV32I 三級管線 CPU 學習與實作清單。">
-  <title>RV32I 三級管線 CPU｜實作導航</title>
+  <meta name="description" content="依照目前 SystemVerilog 專案規劃的 RV32I 四級管線 CPU Core 學習、實作與 RTL 封版清單。">
+  <title>RV32I 四級管線 CPU Core｜RTL 實作導航</title>
   <style>
     :root {
       --bg: #f4f1e8;
@@ -57,6 +57,9 @@
     .header-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
 
     .button {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
       border: 1px solid var(--ink);
       border-radius: 999px;
       padding: 10px 16px;
@@ -166,10 +169,12 @@
   <header class="shell">
     <p class="eyebrow">Build log · RV32I · 4-stage pipeline</p>
     <h1>把 CPU 骨架，變成真的會跑程式的處理器。</h1>
-    <p class="lede">這份導航依照你目前的 SystemVerilog 專案編排。一次只處理一個可驗收的小目標；勾選進度會自動保存在這台電腦的瀏覽器。</p>
+    <p class="lede">這份導航只管理 RV32I CPU Core 的 RTL 完成度。一次只處理一個可驗收的小目標；量測方法與 RTL-to-GDS 後段流程分別放在獨立頁面。</p>
     <div class="header-actions">
       <button class="button" id="jumpCurrent">前往目前步驟</button>
       <button class="button secondary" id="exportProgress">匯出進度</button>
+      <a class="button secondary" href="docs/measurement-plan.html">量測指標與方法</a>
+      <a class="button secondary" href="docs/rtl-to-gds-roadmap.html">RTL-to-GDS 後段流程</a>
       <button class="button secondary danger" id="resetProgress">重設勾選</button>
     </div>
   </header>
@@ -188,6 +193,23 @@
         </div>
         <div class="track" aria-label="總進度"><div class="bar" id="progressBar"></div></div>
       </article>
+    </section>
+
+    <section class="section panel callout">
+      <h3>正式 RTL 目標 · RV32I CPU Core v1.0</h3>
+      <p>完成四級、single-issue、in-order 的 RV32I Core：支援 40 條 RV32I base instruction，具同步 Instruction/Data Memory transaction contract、precise trap interface 與 retire trace；通過 directed、整合、程式映像與 architectural tests 後封存 RTL。此目標不包含 CSR／privileged mode、interrupt、RV32M、cache、MMU、實體記憶體 macro 與後段實作。</p>
+      <div class="table-wrap" style="margin-top: 16px;">
+        <table>
+          <thead><tr><th>必須完成</th><th>完成定義</th><th>明確排除</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>現有 37 條指令，加上 <code>FENCE</code>、<code>ECALL</code>、<code>EBREAK</code></td>
+              <td>合法指令結果正確；illegal、breakpoint、environment call 與 alignment fault 產生明確且精確的 trap，不再靜默忽略</td>
+              <td><code>Zicsr</code>、machine-mode CSR、interrupt、RV32M 與 SoC 周邊另立里程碑</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="section">
@@ -220,7 +242,7 @@
           <thead><tr><th>檔案／模組</th><th>目前內容</th><th>判定</th><th>接下來要補</th></tr></thead>
           <tbody>
             <tr><td><code>PC.sv</code></td><td>reset、stall hold 與 branch/JAL/JALR target 選路</td><td><span class="status ready">已驗證</span></td><td>已整合 load-use hazard 的 PC hold</td></tr>
-            <tr><td><code>Program_ROM.sv</code></td><td>64-word、單 cycle 同步 response；PC、instruction 與 valid 成組保存，支援 stall hold、reset/kill invalidation 且 kill 優先</td><td><span class="status ready">已驗證</span></td><td>之後可改用 readmemh、外部程式映像或 SRAM wrapper</td></tr>
+            <tr><td><code>Program_ROM.sv</code></td><td>64-word、單 cycle 同步 response；PC、instruction 與 valid 成組保存，支援 stall hold、reset/kill invalidation 且 kill 優先</td><td><span class="status ready">已驗證</span></td><td>移到 simulation wrapper，改由 readmemh 載入外部程式映像</td></tr>
             <tr><td><code>IFID.sv</code></td><td>模組本身的 capture、stall 與 flush 單元測試仍保留；CPU Top 已由 Program ROM response register 直接形成 IF/ID 邊界</td><td><span class="status ready">已驗證但未實例化</span></td><td>若未來換成不同延遲的 instruction memory，再評估是否恢復獨立 fetch queue/register</td></tr>
             <tr><td><code>Inst_Decoder.sv</code></td><td>欄位拆解與 I/S/B/U/J immediate；正負值與 opcode 單元測試通過</td><td><span class="status ready">已驗證</span></td><td>隨後續指令擴充欄位與合法性檢查</td></tr>
             <tr><td><code>Reg_File.sv</code></td><td>雙讀單寫、x0 固定為 0；ALU、jump、Load writeback 與 load-use stall 後寫回通過</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
@@ -229,13 +251,15 @@
             <tr><td><code>ALU.sv</code></td><td>10 種 RV32 整數運算，並用於 Load/Store effective address 計算</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>Branch_Unit.sv</code></td><td>六種 branch 比較、PC-relative target 與 branch enable 保護</td><td><span class="status ready">已驗證</span></td><td>之後與 jump 共用 redirect/flush 仲裁</td></tr>
             <tr><td><code>Data_Memory.sv</code></td><td>固定 4 KiB（1024×32）、同步讀寫、read valid 與 4-bit byte enable；Load/Store path 已接入</td><td><span class="status ready">已驗證</span></td><td>之後抽換 SRAM wrapper 時維持相同時序契約</td></tr>
-            <tr><td><code>Store_Unit.sv</code></td><td>SB/SH/SW byte enable、write-data 對齊與 misalignment suppression</td><td><span class="status ready">已驗證</span></td><td>控制流程回歸持續保留</td></tr>
-            <tr><td><code>Load_Unit.sv</code></td><td>LB/LH sign extension、LBU/LHU zero extension、LW、misalignment 與緊鄰 load-use dependency</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
-            <tr><td><code>Control_Unit.sv</code></td><td>I/R/U、branch、jump、Load/Store controls；以 valid_inst_ 區分合法性，非法與保留編碼皆輸出安全預設值</td><td><span class="status ready">已驗證</span></td><td>持續保留非法編碼與完整回歸</td></tr>
+            <tr><td><code>Store_Unit.sv</code></td><td>SB/SH/SW byte enable、write-data 對齊與 misalignment suppression</td><td><span class="status ready">已驗證</span></td><td>將 misalignment suppression 升級為 precise trap request</td></tr>
+            <tr><td><code>Load_Unit.sv</code></td><td>LB/LH sign extension、LBU/LHU zero extension、LW、misalignment 與緊鄰 load-use dependency</td><td><span class="status ready">已驗證</span></td><td>將 misalignment suppression 升級為 precise trap request</td></tr>
+            <tr><td><code>Control_Unit.sv</code></td><td>I/R/U、branch、jump、Load/Store controls；以 valid_inst_ 區分合法性，非法與保留編碼皆輸出安全預設值</td><td><span class="status ready">已驗證</span></td><td>補 FENCE、ECALL、EBREAK 與 trap cause 解碼</td></tr>
             <tr><td><code>Forwarding_Unit.sv</code></td><td>EX/WB→ID rs1/rs2 bypass；Load address 不會在 EX 被誤當成結果 forwarding，並已整合 load-use 精確 stall</td><td><span class="status ready">已驗證</span></td><td>持續保留完整回歸</td></tr>
             <tr><td><code>Hazard_Unit.sv</code></td><td>比較 EX Load 的 rd 與 ID 指令真正使用的 rs1/rs2；排除 x0 與未使用來源，真相依時精確 stall 一個 cycle</td><td><span class="status ready">已驗證</span></td><td>之後可延伸支援可變延遲 memory</td></tr>
             <tr><td><code>Controller.sv</code></td><td>S0/S1 初始化 flush，S2 正常運作</td><td><span class="status partial">初始化用</span></td><td>另建 instruction control；之後整合 stall/flush</td></tr>
-            <tr><td><code>CPU_Top.sv</code></td><td>四級 I/R/U/branch/jump/Load/Store 資料路徑、同步 instruction/data response、forwarding、stall/flush，以及 PC/instruction/register/memory side-effect 退休介面</td><td><span class="status ready">已驗證</span></td><td>下一步整理 README、架構圖與已知限制</td></tr>
+            <tr><td><code>CPU_Core.sv</code></td><td>四級 datapath/control/register file；以明確 request/response ports 連接 instruction/data memory，保留 retire interface，內部不含 memory array</td><td><span class="status ready">已驗證</span></td><td>下一步加入 precise trap interface 與仲裁</td></tr>
+            <tr><td><code>CPU_Sim_Top.sv</code></td><td>實例化 CPU_Core、Program_ROM、Data_Memory，並集中提供 testbench debug aliases 與 register helper</td><td><span class="status ready">已驗證</span></td><td>後續加入外部程式映像 loader</td></tr>
+            <tr><td><code>CPU_Top.sv</code></td><td>保留既有 clk/reset/retire 外部介面的相容 wrapper，內部轉接 CPU_Sim_Top</td><td><span class="status ready">相容層</span></td><td>正式 synthesis 以 CPU_Core 為 top</td></tr>
             <tr><td><code>tb_CPU_Top.sv</code></td><td>自行載入 I/R/U-type 程式；檢查 x0～x25 architectural state、forwarding 與非零 PC AUIPC</td><td><span class="status ready">自動驗證</span></td><td>隨新指令持續擴充</td></tr>
             <tr><td><code>tb_CPU_Branch.sv</code></td><td>六種 branch 的 taken/not-taken 與前後跳，共 24 情境；每次 redirect 另驗 PC target、response kill、payload 配對及 ID/EX bubble</td><td><span class="status ready">自動驗證</span></td><td>load-use 與 branch 的交互測試已另行補齊</td></tr>
             <tr><td><code>tb_CPU_JAL.sv</code></td><td>JAL 正負位移、PC+4 回寫與 rd=x0；逐次驗證 redirect 後 response kill 與 ID/EX bubble</td><td><span class="status ready">自動驗證</span></td><td>控制流程回歸持續保留</td></tr>
@@ -269,8 +293,8 @@
     </section>
 
     <section class="section panel callout">
-      <h3>第一個明確的功能終點</h3>
-      <p>ROM 第一條指令 <code>addi x1, x0, -5</code> 經過三級管線後，Register File 的 <code>x1</code> 必須等於 <code>32'hFFFF_FFFB</code>，而且 testbench 會自動判定成功或失敗。</p>
+      <h3>這份清單的正式終點</h3>
+      <p><code>CPU_Core v1.0</code> 的 40 條 RV32I base instruction、precise trap、memory contract、retire/trap trace 與外部程式映像流程全部通過自動驗證；重新整理、改變 wrapper 或替換模擬記憶體後結果不變。完成後再前往「量測指標與方法」及「RTL-to-GDS 後段流程」，不在此清單混入 PDK、floorplan 或 signoff 工作。</p>
     </section>
 
     <section class="section">
@@ -461,7 +485,7 @@
         ]
       },
       {
-        name: "Milestone 5 · 記憶體與完整 RV32I 子集",
+        name: "Milestone 5 · 記憶體與既有 RV32I 功能",
         steps: [
           {
             id: "data-memory",
@@ -559,6 +583,141 @@
             caution: "文件內容以實際測試通過的功能為準，不把預計功能寫成已完成。"
           }
         ]
+      },
+      {
+        name: "Milestone 7 · 鎖定 RV32I Core v1.0 契約",
+        steps: [
+          {
+            id: "rv32i-contract",
+            title: "定義完整 RV32I Core 規格契約",
+            summary: "先把『完整』轉成可逐項驗收的 40 條指令與行為矩陣。",
+            goal: "鎖定 RV32I Core v1.0 的 ISA、IALIGN=32、reset vector、固定一週期 memory contract、trap/retire 語意與不支援項目。",
+            files: "README.md、docs/rv32i-core-spec.md、rtl/defines.sv。",
+            work: ["列出現有 37 條指令", "補列 FENCE、ECALL、EBREAK", "定義 illegal/alignment trap", "定義 reset 與 memory timing", "明列 Zicsr、interrupt、RV32M、cache/MMU 不在 v1.0"],
+            verify: "規格矩陣對每條指令列出 decode、operands、結果、副作用、trap 條件與對應測試；沒有未記錄的 CPU 行為。",
+            caution: "RV32I base 與 privileged architecture、Zicsr 是不同範圍；若選擇內建 machine-mode CSR，必須明確升級專案範圍。"
+          },
+          {
+            id: "core-boundary",
+            title: "拆分 CPU_Core 與模擬環境",
+            summary: "讓 Core 不知道外部是 RTL array、SRAM macro 還是其他 memory model。",
+            goal: "建立只包含 datapath/control/register file 的 CPU_Core；CPU_Sim_Top 再接 Program_ROM、Data_Memory 與測試觀察介面。",
+            files: "建議新增 rtl/CPU_Core.sv、rtl/CPU_Sim_Top.sv，調整 rtl/CPU_Top.sv、Program_ROM.sv、Data_Memory.sv 與 CPU testbench。",
+            work: ["抽出 instruction request/response ports", "抽出 data request/response ports", "保留 retire/trap observation ports", "simulation wrapper 實例化 ROM/RAM", "避免 testbench 階層路徑綁死 Core 內部"],
+            verify: "重構前後完整回歸、array-sum cycle count 與 ordered retire trace 完全相同；CPU_Core 內沒有 instruction/data memory array。",
+            caution: "不要在重構同時改 pipeline latency；先做行為等價的邊界抽取，再擴充 handshake 或 memory macro。"
+          },
+          {
+            id: "trap-contract",
+            title: "定義 precise trap 介面與優先權",
+            summary: "所有例外都走同一條可觀察、可清空錯誤路徑的控制流程。",
+            goal: "定義 trap valid、cause、fault PC、tval、接收/redirect 規則，以及 trap、redirect、stall、reset 同時發生時的唯一優先順序。",
+            files: "建議新增 rtl/Trap_Unit.sv，修改 defines.sv、IDEX.sv、EXWB.sv、CPU_Core.sv 與 trap 單元測試。",
+            work: ["列出 trap cause encoding", "保存 faulting PC/instruction/address", "禁止 faulting instruction 的 register/memory side effect", "kill younger instructions", "保留 older instruction 的正確退休順序"],
+            verify: "每種 trap 都只送出一次事件；faulting 與 wrong-path 指令不退休、不寫 register/memory，trap metadata 與原指令成組對齊。",
+            caution: "precise trap 不是把指令改成 NOP；必須同時保證副作用、退休順序、PC redirect 與 pipeline valid 的一致性。"
+          }
+        ]
+      },
+      {
+        name: "Milestone 8 · 補齊 RV32I base 與 architectural trap",
+        steps: [
+          {
+            id: "fence",
+            title: "支援 FENCE",
+            summary: "補齊 RV32I base 的 memory-ordering 指令。",
+            goal: "合法解碼並退休 FENCE；在目前 single-issue、in-order、無 cache、無 outstanding request 的 contract 下，將它實作為不改變 architectural state 的 ordering point。",
+            files: "defines.sv、Control_Unit.sv、IDEX.sv、EXWB.sv、CPU_Core.sv、FENCE 單元與整合測試。",
+            work: ["辨識 MISC-MEM opcode 與 FENCE funct3", "不寫 rd/memory", "不誤判 source dependency", "保留 retire PC/instruction", "記錄未來可變延遲 memory 下的 drain 規則"],
+            verify: "FENCE 前後的 Load/Store 順序與結果正確，FENCE 只產生合法 retire event 且沒有 register/memory side effect。",
+            caution: "只有在沒有 cache、write buffer 與 outstanding transaction 時才可視為硬體 no-op；memory contract 改變後必須重新檢查。"
+          },
+          {
+            id: "system",
+            title: "支援 ECALL 與 EBREAK",
+            summary: "讓 SYSTEM 指令產生明確的 environment-call 與 breakpoint trap。",
+            goal: "辨識 ECALL/EBREAK 的完整固定編碼，輸出不同 trap cause，並禁止一般 writeback、memory request 與 control-flow side effect。",
+            files: "defines.sv、Control_Unit.sv、Trap_Unit.sv、CPU_Core.sv、SYSTEM 指令測試。",
+            work: ["完整 32-bit encoding legality check", "ECALL cause", "EBREAK cause", "fault PC/tval metadata", "trap redirect/ack 測試"],
+            verify: "ECALL 與 EBREAK 各送出一次正確 cause；相似但保留的 SYSTEM encoding 走 illegal-instruction trap。",
+            caution: "只看 opcode 不足以區分合法 SYSTEM 指令；必須檢查 funct3、rd、rs1 與 immediate 固定位元。"
+          },
+          {
+            id: "precise-traps",
+            title: "將 illegal instruction 改為 precise trap",
+            summary: "把現有『安全忽略』升級成可驗證的 architectural exception。",
+            goal: "所有未知 opcode、保留 funct3/funct7 與不合法固定欄位都產生 illegal-instruction trap，並回報原始 instruction。",
+            files: "Control_Unit.sv、Trap_Unit.sv、CPU_Core.sv、tb_CPU_Illegal.sv、tb_CPU_Retire.sv。",
+            work: ["illegal cause", "tval=instruction", "faulting instruction 不退休", "禁止 RegWrite/MemWrite/redirect", "同週期其他 redirect/trap 優先權測試"],
+            verify: "既有 7 類與新增的保留編碼全部產生正確 trap；前方合法指令可退休，faulting 與後方指令沒有 architectural side effect。",
+            caution: "更新後舊測試的預期必須從『沒有副作用後繼續』改成『送出 trap 並依 contract redirect/停止』。"
+          },
+          {
+            id: "alignment-traps",
+            title: "完成 instruction 與 data alignment trap",
+            summary: "不必實作跨 Word 存取，但不能再靜默吞掉錯誤。",
+            goal: "對 taken Branch/JAL/JALR 的非 IALIGN=32 target，以及不符合自然對齊的 LH/LHU/LW/SH/SW，產生精確 trap 與 fault address。",
+            files: "Branch_Unit.sv、Load_Unit.sv、Store_Unit.sv、Trap_Unit.sv、CPU_Core.sv 與 alignment 測試。",
+            work: ["taken control-flow target bit[1:0] 檢查", "JALR 清 bit0 後再檢查 IALIGN", "halfword/word data alignment", "tval=fault address", "not-taken branch 不誤報"],
+            verify: "所有 offset 與 taken/not-taken 邊界案例產生正確結果；misaligned request 不到達 Data Memory，也不回寫 register。",
+            caution: "RV32I 可用 trap 處理 misaligned data access；『完整』不等於一定要用硬體完成跨 Word 讀寫。"
+          }
+        ]
+      },
+      {
+        name: "Milestone 9 · 程式映像、架構驗證與 RTL 封版",
+        steps: [
+          {
+            id: "program-image",
+            title: "建立 Assembly／ELF／HEX 程式映像流程",
+            summary: "不用再手動把 instruction 寫進 Program_ROM.sv。",
+            goal: "以固定命令將 RV32I assembly 編譯為 ELF/HEX，simulation wrapper 使用 readmemh 或等價 loader 載入程式與初始資料。",
+            files: "建議新增 programs/、linker script、轉換腳本、Program_ROM.sv／CPU_Sim_Top.sv 與 run_tests.sh 入口。",
+            work: ["鎖定 -march=rv32i -mabi=ilp32", "定義 reset vector 與 memory map", "ELF/bin 到 word-oriented HEX", "處理 little-endian", "測試完成 sentinel/signature"],
+            verify: "從一個 .S 檔開始只需一條命令即可產生映像並模擬；反組譯、載入位址、retire instruction 與 golden signature 一致。",
+            caution: "asm2sv 不是功能驗證本身；程式映像應留在 wrapper/testbench，不要重新綁回 CPU_Core RTL。"
+          },
+          {
+            id: "rv32i-directed",
+            title: "建立 40 條 RV32I 指令驗證矩陣",
+            summary: "每條 base instruction 都有正常、邊界、相依與非法鄰近案例。",
+            goal: "以可追溯矩陣連結每條 RV32I instruction、corner case、pipeline interaction 與自動測試。",
+            files: "tb/、programs/、run_tests.sh、RV32I 規格矩陣與 golden traces。",
+            work: ["x0 與 rd/rs 邊界", "signed/unsigned 極值", "最大/最小 immediate", "forwarding/load-use", "taken/not-taken/redirect", "trap 與 wrong-path 交互"],
+            verify: "40 條 instruction 每條至少一個正向案例，並依語意補齊 corner cases；測試失敗回傳非零 exit code。",
+            caution: "有測到 opcode 不代表有測完整語意；同一指令可能需要 signedness、alignment、hazard 與 control-flow 多組案例。"
+          },
+          {
+            id: "architectural-tests",
+            title: "接入 architectural signature tests",
+            summary: "用外部產生的自我檢查程式補強手寫測試盲點。",
+            goal: "依 CPU v1.0 能力建立 DUT configuration、memory map 與 signature protocol，執行適用的 RV32I architectural tests。",
+            files: "建議新增 verification/arch-test/ 設定、testbench adapter、signature dump 與 regression script。",
+            work: ["描述支援 extension 與 alignment policy", "載入 self-checking ELF", "完成 pass/fail/signature interface", "保留失敗時 objdump/trace", "與 directed tests 一起回歸"],
+            verify: "所有適用 RV32I tests 通過，失敗時可由 PC/instruction/trap/retire trace 定位；測試結果與工具版本被保存。",
+            caution: "architectural tests 不是完整 verification；它們補充而不取代現有 unit、integration、hazard 與 precise-trap 測試。"
+          },
+          {
+            id: "compiled-programs",
+            title: "執行代表性編譯程式",
+            summary: "驗證 calling convention、stack、迴圈與 memory interaction。",
+            goal: "至少執行函式呼叫/返回、stack frame、陣列或 memcpy 類操作，以及 branch-heavy 迴圈程式。",
+            files: "programs/、linker script、startup code、CPU_Sim_Top/testbench 與 golden signatures。",
+            work: ["初始化 stack pointer", "JAL/JALR call-return", "callee/caller-saved register 情境", "Load/Store 與 branch mix", "最大 cycle timeout"],
+            verify: "所有程式在固定 memory image 下產生 golden signature；重跑結果、retired count 與 cycle count 一致。",
+            caution: "沒有 RV32M 時，編譯器可能呼叫軟體乘除函式；必須鎖定 toolchain flags 並檢查反組譯。"
+          },
+          {
+            id: "rtl-release",
+            title: "完成 RTL 品質檢查並封存 v1.0",
+            summary: "把可工作的版本變成可交給量測與後段流程的固定輸入。",
+            goal: "清除 lint error、非預期 latch/multiple driver/width mismatch，鎖定介面與所有 regression，產生 RV32I Core v1.0 release manifest。",
+            files: "所有 rtl/、tb/、programs/、run_tests.sh、README.md、lint 設定與 release manifest。",
+            work: ["全 RTL lint", "reset/valid/side-effect audit", "完整回歸", "保存測試與 coverage 摘要", "記錄 git commit 與支援矩陣", "凍結 CPU_Core ports"],
+            verify: "從乾淨環境可重建程式映像並跑完所有測試；零 lint error、所有驗收通過，release manifest 指向唯一 commit。",
+            caution: "v1.0 封版後若改 ISA、pipeline latency、memory/trap contract，必須建立新版本並重新量測，不覆寫舊基線。"
+          }
+        ]
       }
     ];
 
@@ -587,7 +746,10 @@
       "illegal",
       "program-test",
       "sync-imem",
-      "reference"
+      "reference",
+      "documentation",
+      "rv32i-contract",
+      "core-boundary"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();
@@ -681,7 +843,7 @@
         article.querySelector(".step-title").addEventListener("click", toggleOpen);
 
         article.querySelector(".help").addEventListener("click", async () => {
-          const prompt = `我正在完成 RV32I 三級管線 CPU 的「${step.title}」。\n目標：${step.goal}\n驗收條件：${step.verify}\n請先查看我目前專案中的實作，再帶我完成這一步；先解釋設計與要改的訊號，不要一次替我完成後續步驟。`;
+          const prompt = `我正在完成 RV32I 四級管線 CPU Core 的「${step.title}」。\n目標：${step.goal}\n驗收條件：${step.verify}\n請先查看我目前專案中的實作，再帶我完成這一步；先解釋設計與要改的訊號，不要一次替我完成後續步驟。`;
           try {
             await navigator.clipboard.writeText(prompt);
             showToast("求助內容已複製，可以貼到 Codex。 ");
@@ -715,8 +877,8 @@
         document.getElementById("currentTitle").textContent = `${String(number).padStart(2, "0")} · ${current.title}`;
         document.getElementById("currentDescription").textContent = current.goal;
       } else {
-        document.getElementById("currentTitle").textContent = "全部完成 · 你的 CPU 已走完整條驗證路線";
-        document.getElementById("currentDescription").textContent = "保留測試與紀錄，接下來可以挑戰 CSR、interrupt、cache 或 FPGA 部署。";
+        document.getElementById("currentTitle").textContent = "全部完成 · RV32I CPU Core RTL v1.0 已封版";
+        document.getElementById("currentDescription").textContent = "固定 release commit 與測試紀錄，接著依量測計畫及 RTL-to-GDS 頁面建立可重現的後段基線。";
       }
 
       document.querySelectorAll(".step").forEach(article => {
