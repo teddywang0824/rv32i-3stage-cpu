@@ -24,6 +24,8 @@ module tb_CPU_Retire;
     CPU_Sim_Top u_CPU_Top (
         .clk                    (clk),
         .rst                    (rst),
+        .trap_ack               (1'b0),
+        .trap_redirect_pc       (32'd0),
         .retire_valid           (retire_valid),
         .retire_pc              (retire_pc),
         .retire_inst            (retire_inst),

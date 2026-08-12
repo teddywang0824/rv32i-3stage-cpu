@@ -12,7 +12,9 @@ module tb_CPU_Top ;
 
     CPU_Sim_Top u_CPU_Top (
         .clk(clk),
-        .rst(rst)
+        .rst(rst),
+        .trap_ack(1'b0),
+        .trap_redirect_pc(32'd0)
     );
 
     // 產生波形檔，之後可使用 GTKWave 查看 pipeline 訊號。

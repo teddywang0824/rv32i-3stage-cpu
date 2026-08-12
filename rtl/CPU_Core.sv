@@ -19,6 +19,13 @@ module CPU_Core (
     input  logic        dmem_resp_valid,
     input  logic [31:0] dmem_resp_rdata,
 
+    output logic        trap_valid,
+    output logic [3:0]  trap_cause,
+    output logic [31:0] trap_pc,
+    output logic [31:0] trap_tval,
+    input  logic        trap_ack,
+    input  logic [31:0] trap_redirect_pc,
+
     output logic        retire_valid,
     output logic [31:0] retire_pc,
     output logic [31:0] retire_inst,
@@ -154,6 +161,13 @@ logic [3:0]  exwb_store_byte_enable_r;
 // Load Unit
 logic [31:0] load_value;
 logic load_misaligned;
+
+// Step 27 interface baseline.  Trap_Unit will replace these safe defaults
+// when the pending/ack/redirect behavior is integrated.
+assign trap_valid = 1'b0;
+assign trap_cause = 4'd0;
+assign trap_pc    = 32'd0;
+assign trap_tval  = 32'd0;
 
 // Keep the existing datapath names local while the public Core boundary uses
 // explicit request/response terminology.

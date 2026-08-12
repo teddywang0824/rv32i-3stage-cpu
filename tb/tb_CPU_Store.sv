@@ -8,7 +8,9 @@ module tb_CPU_Store;
 
     CPU_Sim_Top u_CPU_Top (
         .clk(clk),
-        .rst(rst)
+        .rst(rst),
+        .trap_ack(1'b0),
+        .trap_redirect_pc(32'd0)
     );
 
     initial begin

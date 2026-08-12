@@ -127,6 +127,12 @@ run_load_unit_test() {
     tb/tb_Load_Unit.sv
 }
 
+run_trap_unit_test() {
+  run_test tb_Trap_Unit \
+    rtl/Trap_Unit.sv \
+    tb/tb_Trap_Unit.sv
+}
+
 run_cpu_test() {
   run_test tb_CPU_Top \
     rtl/Controller.sv \
@@ -454,6 +460,10 @@ case "${test_name}" in
     run_load_unit_test
     ;;
 
+  trapunit)
+    run_trap_unit_test
+    ;;
+
   store)
     run_store_test
     echo "Waveform: ${build_dir}/cpu_store.vcd"
@@ -525,6 +535,7 @@ case "${test_name}" in
     run_data_memory_test
     run_store_unit_test
     run_load_unit_test
+    run_trap_unit_test
     run_store_test
     run_load_test
     run_load_hazard_test
@@ -541,7 +552,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapunit|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

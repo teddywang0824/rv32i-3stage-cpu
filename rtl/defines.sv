@@ -34,7 +34,7 @@
 `define I_ECALL         32'h0000_0073
 `define I_EBREAK        32'h0010_0073
 
-// Architectural exception cause values used by the v1.0 trap contract.
+// trap 發生的例外種類
 `define TRAP_INST_ADDR_MISALIGNED 4'd0
 `define TRAP_ILLEGAL_INSTRUCTION  4'd2
 `define TRAP_BREAKPOINT           4'd3
