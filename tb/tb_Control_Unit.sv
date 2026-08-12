@@ -668,6 +668,23 @@ module tb_Control_Unit;
         check_load_control(3'bxxx, 1'b0,
                            "unknown LOAD funct3 uses safe controls");
 
+        // FENCE is legal but has no register, memory, control-flow, or source
+        // dependency side effect in the current blocking in-order core.
+        check_control(
+            `Opcode_MISC_MEM, `F3_FENCE, 7'b111_1111,
+            1'b0, `OP_B_RS2, `ALUOP_NOP, 1'b1,
+            "FENCE is a legal side-effect-free instruction"
+        );
+        if (id_uses_rs1 !== 1'b0 || id_uses_rs2 !== 1'b0 ||
+            branch_en_ !== 1'b0 || jump_op_ !== 1'b0)
+            $fatal(1, "[FAIL] FENCE must not claim sources or redirect");
+
+        check_control(
+            `Opcode_MISC_MEM, 3'b001, 7'b000_0000,
+            1'b0, `OP_B_RS2, `ALUOP_NOP, 1'b0,
+            "reserved MISC-MEM funct3 is illegal"
+        );
+
         // JALR 只有 funct3=000 合法；ALU 產生 PC+4，跳轉單元另算 rs1+imm。
         check_jump_control(
             `Opcode_JALR, 3'b000,

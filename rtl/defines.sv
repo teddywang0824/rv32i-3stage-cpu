@@ -25,22 +25,10 @@
 `define Opcode_LUI      7'b0110111 // Utype
 `define Opcode_AUIPC    7'b0010111 // Utype
 `define Opcode_JAL      7'b1101111 // Jtype
+
 `define Opcode_MISC_MEM 7'b0001111 // FENCE
 `define Opcode_SYSTEM   7'b1110011 // ECALL / EBREAK
 
-// Fixed encodings in the RV32I v1.0 target contract.
-`define F3_FENCE        3'b000
-`define F3_SYSTEM_PRIV  3'b000
-`define I_ECALL         32'h0000_0073
-`define I_EBREAK        32'h0010_0073
-
-// trap 發生的例外種類
-`define TRAP_INST_ADDR_MISALIGNED 4'd0
-`define TRAP_ILLEGAL_INSTRUCTION  4'd2
-`define TRAP_BREAKPOINT           4'd3
-`define TRAP_LOAD_ADDR_MISALIGNED 4'd4
-`define TRAP_STORE_ADDR_MISALIGNED 4'd6
-`define TRAP_ENV_CALL             4'd11
 
 // funct3 for I/R-type
 // 3-bit 功能碼，用來區分在同個 opcode 下，進一步分辨是哪一條指令
@@ -140,5 +128,19 @@
 `define F3_LHU 3'b101
 
 `define F3_LOAD_NONE 3'b011
+
+// Fixed encodings in the RV32I v1.0 target contract.
+`define F3_FENCE        3'b000
+`define F3_SYSTEM_PRIV  3'b000
+`define I_ECALL         32'h0000_0073
+`define I_EBREAK        32'h0010_0073
+
+// trap 發生的例外種類
+`define TRAP_INST_ADDR_MISALIGNED 4'd0
+`define TRAP_ILLEGAL_INSTRUCTION  4'd2
+`define TRAP_BREAKPOINT           4'd3
+`define TRAP_LOAD_ADDR_MISALIGNED 4'd4
+`define TRAP_STORE_ADDR_MISALIGNED 4'd6
+`define TRAP_ENV_CALL             4'd11
 
 `endif

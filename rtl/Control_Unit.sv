@@ -312,6 +312,9 @@ always_comb begin
                 end
             endcase
         end
+        `Opcode_MISC_MEM : begin
+            valid_inst_ = (funct3_ == `F3_FENCE) ? 1'b1 : 0;
+        end
         default: begin
             reg_write_ = 0;
             operand_b_sel_ = 0;
@@ -321,9 +324,6 @@ always_comb begin
         end
     endcase
 
-    // Source-register usage belongs to the decoded instruction in ID.
-    // Only legal instructions may claim a source, preventing false hazards
-    // from immediate bits that overlap the encoded rs1/rs2 fields.
     if (valid_inst_) begin
         case (opcode_)
             `Opcode_I, `Opcode_LOAD, `Opcode_JALR: begin
