@@ -269,7 +269,7 @@
             <tr><td><code>tb_CPU_Store.sv</code></td><td>SB/SH/SW offsets、負 S-immediate、rs1/rs2 forwarding、misalignment 與 wrong-path flush</td><td><span class="status ready">自動驗證</span></td><td>下一步加入 Load/Store 交互測試</td></tr>
             <tr><td><code>tb_CPU_Load.sv</code></td><td>五種 Load、signed/unsigned extension、連續 request、負立即數、base forwarding、misalignment、flush 與非法編碼</td><td><span class="status ready">自動驗證</span></td><td>load-use 緊鄰相依測試已另行補齊</td></tr>
             <tr><td><code>tb_CPU_Load_Hazard.sv</code></td><td>涵蓋 Load→ALU、R-type 雙來源、Store 位址/資料、Branch、JALR、假相依與間隔一指令，共 7 類整合情境</td><td><span class="status ready">自動驗證</span></td><td>作為 load-use hazard 的整合回歸測試</td></tr>
-            <tr><td><code>tb_CPU_Illegal.sv</code></td><td>注入 7 類非法編碼，逐筆驗證 cause/PC/tval、無 register/memory side effect，ack 後由指定 PC 繼續</td><td><span class="status ready">自動驗證</span></td><td>作為 illegal precise trap 的整合回歸測試</td></tr>
+            <tr><td><code>tb_CPU_Illegal.sv</code></td><td>涵蓋 9 類非法編碼：R-type funct7、兩類 shift-immediate 高位、Load/Store/Branch/JALR 保留 funct3 與未知 opcode；逐筆驗證 cause/PC/tval、不退休、無副作用及 ack 後繼續</td><td><span class="status ready">自動驗證</span></td><td>MISC-MEM 與 SYSTEM 保留編碼由專屬整合測試補齊</td></tr>
             <tr><td><code>tb_Trap_Unit.sv</code></td><td>涵蓋 reset、metadata 保存、pending 穩定、第二筆拒絕、ack redirect、reset 優先與 ack/request 同週期，共 9 類 contract 情境</td><td><span class="status ready">自動驗證</span></td><td>作為 trap handshake 與優先權單元回歸</td></tr>
             <tr><td><code>tb_CPU_Trap.sv</code></td><td>驗證 illegal 與 misaligned Store precise trap；older 可退休，faulting/younger 不退休且無副作用，每筆只送一次事件，ack 後從指定 PC 重新取指</td><td><span class="status ready">自動驗證</span></td><td>後續擴充 SYSTEM 與其餘 alignment trap 情境</td></tr>
             <tr><td><code>tb_CPU_FENCE.sv</code></td><td>驗證 Store/FENCE/Load 排序、兩筆 FENCE 合法退休、無 register/memory/redirect/dependency 副作用，以及保留 MISC-MEM funct3 的 illegal trap</td><td><span class="status ready">自動驗證</span></td><td>memory contract 加入 outstanding transaction 時需擴充 drain 測試</td></tr>
@@ -655,7 +655,7 @@
             goal: "所有未知 opcode、保留 funct3/funct7 與不合法固定欄位都產生 illegal-instruction trap，並回報原始 instruction。",
             files: "Control_Unit.sv、Trap_Unit.sv、CPU_Core.sv、tb_CPU_Illegal.sv、tb_CPU_Retire.sv。",
             work: ["illegal cause", "tval=instruction", "faulting instruction 不退休", "禁止 RegWrite/MemWrite/redirect", "同週期其他 redirect/trap 優先權測試"],
-            verify: "既有 7 類與新增的保留編碼全部產生正確 trap；前方合法指令可退休，faulting 與後方指令沒有 architectural side effect。",
+            verify: "9 類一般非法編碼，加上 MISC-MEM 與 SYSTEM 保留編碼，全部產生正確 trap；前方合法指令可退休，faulting 與後方指令沒有 architectural side effect。",
             caution: "更新後舊測試的預期必須從『沒有副作用後繼續』改成『送出 trap 並依 contract redirect/停止』。"
           },
           {
@@ -758,7 +758,8 @@
       "core-boundary",
       "trap-contract",
       "fence",
-      "system"
+      "system",
+      "precise-traps"
     ];
     const allSteps = phases.flatMap(phase => phase.steps);
     const state = loadState();
