@@ -203,11 +203,11 @@ assign fetch_response_inst  = imem_resp_inst;
 assign read_valid           = dmem_resp_valid;
 assign read_data            = dmem_resp_rdata;
 
-assign imem_req_valid = keepgoing && !trap_pending && !ex_trap_req_valid;
+assign imem_req_valid = !rst && keepgoing && !trap_pending && !ex_trap_req_valid;
 assign imem_req_addr  = pc;
 assign imem_resp_kill = kill_fetch_response;
 
-assign dmem_req_valid       = effective_ex_mem_en && !misaligned;
+assign dmem_req_valid       = !rst && effective_ex_mem_en && !misaligned;
 assign dmem_req_write       = effective_ex_mem_write;
 assign dmem_req_byte_enable = byte_enable;
 assign dmem_req_addr        = alu_result_;
@@ -268,20 +268,20 @@ always_comb begin
 end
 
 assign effective_ex_valid     = idex_valid_inst_r && !ex_trap_req_valid;
-assign effective_ex_reg_write = idex_reg_write_r && !ex_trap_req_valid;
-assign effective_ex_mem_en    = mem_en_r && !ex_trap_req_valid;
-assign effective_ex_mem_write = mem_write_r && !ex_trap_req_valid;
+assign effective_ex_reg_write = effective_ex_valid && idex_reg_write_r;
+assign effective_ex_mem_en    = effective_ex_valid && mem_en_r;
+assign effective_ex_mem_write = effective_ex_valid && mem_write_r;
 assign check = effective_ex_mem_en && !misaligned;
 
 assign rd_value_ = (exwb_mem_en_r && !exwb_mem_write_r) ? load_value : alu_result_r;
 
-assign retire_valid           = exwb_valid_inst_r;
+assign retire_valid           = !rst && exwb_valid_inst_r;
 assign retire_pc              = exwb_pc_r;
 assign retire_inst            = exwb_inst_r;
-assign retire_rd_write        = write_regf_en_r && (addr_rd_r != 5'd0);
+assign retire_rd_write        = retire_valid && write_regf_en_r && (addr_rd_r != 5'd0);
 assign retire_rd              = addr_rd_r;
 assign retire_rd_data         = rd_value_;
-assign retire_mem_write       = exwb_store_commit_r;
+assign retire_mem_write       = retire_valid && exwb_store_commit_r;
 assign retire_mem_addr        = alu_result_r;
 assign retire_mem_data        = exwb_store_data_r;
 assign retire_mem_byte_enable = exwb_store_byte_enable_r;

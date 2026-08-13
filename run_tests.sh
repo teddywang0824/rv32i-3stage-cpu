@@ -298,6 +298,10 @@ run_arch_test() {
   bash verification/arch-test/run_arch_tests.sh "${1:-*.elf}"
 }
 
+run_lint_test() {
+  bash tools/run_rtl_lint.sh
+}
+
 run_compiled_program_test() {
   local output_dir="build/programs/compiled_workloads"
   local elf_file="${output_dir}/compiled_workloads.elf"
@@ -713,6 +717,10 @@ case "${test_name}" in
     run_arch_test
     ;;
 
+  lint)
+    run_lint_test
+    ;;
+
   compiled)
     run_compiled_program_test
     ;;
@@ -773,6 +781,7 @@ case "${test_name}" in
     ;;
 
   all)
+    run_lint_test
     run_pc_test
     run_reg_test
     run_inst_decoder_test
@@ -815,7 +824,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|cputrap|fence|system|alignment|imagetools|image|directed|arch|compiled|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {lint|pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|cputrap|fence|system|alignment|imagetools|image|directed|arch|compiled|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

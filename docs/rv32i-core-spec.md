@@ -15,7 +15,7 @@
 | Byte order | little-endian |
 | Instruction memory | 固定一週期同步 response；每次接受 request 後，下一個 clock edge 產生與 request PC 配對的 instruction/valid |
 | Data memory | 固定一週期同步 transaction；Load request 的下一個 clock edge產生 word data/valid；Store 在接受 request 的 clock edge依 byte-enable commit |
-| Trap | precise、同步 exception；faulting instruction 不退休且無 register/memory/control-flow side effect，younger instructions 全部 kill，older instructions 可依序完成 |
+| Trap | precise、同步 exception；`trap_valid/ack/redirect_pc` handshake；faulting instruction 不退休且無 register/memory/control-flow side effect，younger instructions 全部 kill，older instructions 可依序完成 |
 | Retire | in-order commit observation；合法、未 trap 的指令（包含無狀態副作用的 Branch、FENCE）各產生一次 retire event |
 
 `rtl/defines.sv` 中的 `RV32_*`、`Opcode_MISC_MEM`、`Opcode_SYSTEM`、固定 SYSTEM encoding 與 `TRAP_*` 是本契約的 RTL 常數來源。
@@ -24,7 +24,7 @@
 
 v1.0 不支援 Zicsr、任何 privileged mode/CSR state、interrupt、RV32M、compressed instruction、atomic、floating point、cache、MMU、memory protection、bus protocol、wait-state/backpressure、outstanding transaction、實體 SRAM macro 或跨 word 的 misaligned data access。
 
-ECALL 使用專案定義的 environment-call cause `11`，但不表示 v1.0 實作 machine mode 或 `mepc`/`mcause` 等 CSR。Trap 只透過 Core 的外部 trap contract 回報及 redirect/ack；具體 ports 與仲裁在「precise trap 介面與優先權」步驟鎖定。
+ECALL 使用專案定義的 environment-call cause `11`，但不表示 v1.0 實作 machine mode 或 `mepc`/`mcause` 等 CSR。Trap 只透過 Core 的外部 `trap_valid/ack/redirect_pc` contract 回報與重新取指。
 
 ## 3. Reset、pipeline 與控制優先權
 
@@ -40,13 +40,13 @@ ECALL 使用專案定義的 environment-call cause `11`，但不表示 v1.0 實�
 
 邏輯 transaction 由 request enable/address 與 response valid/PC/instruction 組成。接受 request 後，response 三個欄位必須成組對齊；stall 時保持完整 response；reset 或 kill 只使 response invalid，且 kill 優先於同週期新 fetch。v1.0 只允許 4-byte aligned fetch address。
 
-目前 simulation model `Program_ROM` 為 64 × 32-bit，以 `address[7:2]` 索引。這個容量與階層式載入方式屬於 simulation wrapper，不是未來 `CPU_Core` 的 architectural state。
+目前 simulation model `Program_ROM` 容量可參數化、預設為 64 × 32-bit，使用完整 word address `address[31:2]` 索引。程式必須位於已配置容量內；超出範圍不產生 architectural access-fault，而屬於 simulation-model 使用錯誤。容量與階層式載入方式不是 `CPU_Core` 的 architectural state。
 
 ### 4.2 Data side
 
 有效 request 必須同時攜帶 enable、read/write、32-bit address、write data、4-bit byte enable 與 access size。Load 在固定一週期 response 的 `valid` 週期取得資料；Store 只在有效、對齊且未被 kill/trap 的 request 上 commit。
 
-目前 simulation model 為 1024 × 32-bit（4 KiB），以 `address[11:2]` 索引。地址超出低 4 KiB 的處理尚無硬體保護，因此程式必須限制在該 window；v1.0 不宣告 access-fault exception。
+目前 split simulation model 容量可參數化、預設為 1024 × 32-bit（4 KiB），使用完整 word address `address[31:2]` 索引。地址超出已配置容量沒有 architectural access-fault 保護，因此程式必須限制在該 window；v1.0 不宣告 access-fault exception。ACT4 與 compiled-program regression 則使用 32 MiB unified simulation memory。
 
 程式映像工具使用獨立的 ELF packaging map：`.text` 位於 `0x0000_0000`–`0x0000_00FF`，`.data` 位於 `0x1000_0000`–`0x1000_0FFF`。轉換成 DMEM HEX 時必須從 data ELF address 減去 `0x1000_0000`；CPU runtime data address 仍為低 4 KiB offset。完整換算、容量檢查與 runtime symbol 限制見 [`program-image-memory-map.md`](program-image-memory-map.md)。ELF 的高位 data base 不是目前硬體的 DMEM base，也不得把現有模型忽略高位 address 的 alias 行為當成 architectural contract。
 
@@ -63,7 +63,7 @@ ECALL 使用專案定義的 environment-call cause `11`，但不表示 v1.0 實�
 | misaligned Store | 6 | 指令本身 PC | effective address | 不發 request、不寫 memory、不退休 |
 | ECALL | 11 | 指令本身 PC | 0 | 不退休、無任何副作用 |
 
-Trap event 必須只送出一次，metadata 必須和 faulting instruction 成組保存。Trap handler address、valid/ready 或 ack 的具體握手不在本步驟擅自假設，由後續 trap-interface 步驟定義；在該步驟完成前，現有 RTL 對 illegal/misaligned 的「抑制副作用」只算過渡行為，不算 v1.0 trap 完成。
+Trap event 必須只送出一次，metadata 必須和 faulting instruction 成組保存。`trap_valid=1` 表示有一筆尚未接收的事件；未 `ack` 時 cause/PC/tval 保持穩定。外部在 rising edge 提供 `trap_ack=1` 時接收事件，同一個 edge 採樣 `trap_redirect_pc`；Core 隨後清除 pending event、kill stale response，並由 redirect PC 重新取指。pending 期間的新 trap request 不可覆寫既有 metadata；`ack` 與新 request 同週期時完成舊事件，新 request 不另行保存。
 
 Retire event 的觀察點是 architectural commit：
 
@@ -132,3 +132,10 @@ Retire event 的觀察點是 architectural commit：
 - machine-readable matrix 必須維持 40 筆唯一指令，且每筆均有正向、corner、pipeline/control、trap/illegal 與存在的 evidence file。
 - 任何 ISA、pipeline latency、reset vector、memory timing、trap/retire ports 或 alignment policy 變更，都屬於契約變更，必須同步更新 README、測試與 release manifest。
 - v1.0 封版條件是 40 條矩陣全部有正向與必要 corner-case 測試、所有 trap 行為符合本文件、完整 regression 通過。
+
+## 9. v1.0 synthesis 與 simulation 分界
+
+- 正式 synthesis top 是 `CPU_Core`；其 source file list 鎖定於 `release/rv32i-core-v1.0.manifest.md`。
+- `CPU_Sim_Top`、`CPU_Top`、`Program_ROM`、`Data_Memory` 與 `Arch_Test_Memory` 是 simulation/compatibility wrapper，不納入 v1.0 synthesizable hierarchy。
+- `IFID.sv` 是可綜合的教學/備選模組，但目前未被 `CPU_Core` 實例化，因此不納入 v1.0 synthesis file list。
+- memory request 沒有 ready/backpressure 或 transaction ID；每側至多一筆、固定一週期、in-order response。任何 wait-state 或多筆 outstanding 支援都屬於後續版本的介面變更。

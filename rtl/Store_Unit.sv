@@ -2,7 +2,11 @@
 
 module Store_Unit (
     input logic [2:0] store_op,
+    // Only the byte offset is consumed here; the full effective address is
+    // retained at the port so the unit contract remains explicit.
+    /* verilator lint_off UNUSED */
     input logic [31:0] address,
+    /* verilator lint_on UNUSED */
     input logic [31:0] value,
 
     output logic [3:0] byte_enable,

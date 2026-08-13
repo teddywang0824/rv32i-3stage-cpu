@@ -20,6 +20,10 @@ Icarus Verilog
   executable: iverilog
   version: 11.0
 
+Verilator
+  executable: /home/yuan/.local/opt/verilator-4.038/usr/bin/verilator_bin
+  version: 4.038
+
 mise
   executable: /home/yuan/.local/bin/mise
   version: 2026.8.5

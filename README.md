@@ -27,6 +27,12 @@ cd /mnt/d/CodeProject/cpu_build
 ./run_tests.sh all
 ```
 
+只執行 `CPU_Core` 可合成 hierarchy 的 Verilator lint：
+
+```bash
+./run_tests.sh lint
+```
+
 只執行退休 trace 測試：
 
 ```bash
@@ -409,6 +415,7 @@ misaligned access。
 | 命令 | 內容 |
 |---|---|
 | `./run_tests.sh all` | 完整回歸 |
+| `./run_tests.sh lint` | Verilator 檢查 `CPU_Core` 可合成 hierarchy；simulation memory 不納入 |
 | `./run_tests.sh cpu` | I/R/U-type CPU integration |
 | `./run_tests.sh branch` | 六種 Branch 的 taken/not-taken、前後跳與 redirect checks |
 | `./run_tests.sh jal` | JAL target、PC+4 link 與 flush |
@@ -430,6 +437,8 @@ misaligned access。
 其餘單元測試可由腳本的 usage 列表查詢，例如 `pc`、`reg`、`instdecoder`、`idex`、`exwb`、`alu`、`control`、`forwarding`、`hazardunit`、`branchunit`、`memory`、`storeunit`、`loadunit`。
 
 學習進度與各里程碑驗收標準請開啟 `index.html`。
+
+RV32I Core v1.0 已完成 lint、side-effect audit 與完整 regression；封版來源、介面限制、工具版本及 log/hash 記錄於 [`release/rv32i-core-v1.0.manifest.md`](release/rv32i-core-v1.0.manifest.md)。
 
 40 條指令逐項的正向、corner、pipeline/control、trap/illegal 與 evidence
 記錄於 [`verification/rv32i-directed.csv`](verification/rv32i-directed.csv)。

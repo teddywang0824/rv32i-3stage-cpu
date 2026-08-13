@@ -1,7 +1,11 @@
 `include "defines.sv"
 module Load_Unit (
     input logic [2:0] load_op,
+    // Only the byte offset is consumed here; the full effective address is
+    // retained at the port so the unit contract remains explicit.
+    /* verilator lint_off UNUSED */
     input logic [31:0] address,
+    /* verilator lint_on UNUSED */
     input logic [31:0] read_data,
 
     output logic [31:0] load_value,
