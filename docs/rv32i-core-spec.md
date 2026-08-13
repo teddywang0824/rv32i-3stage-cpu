@@ -1,12 +1,14 @@
 # RV32I Core v1.0 規格契約
 
-本文件是此專案的 architectural contract。它描述 v1.0 封版時必須成立的行為，並將目前已實作功能與後續待完成項目分開。若 RTL、testbench 與本文件衝突，在 v1.0 封版前必須明確修正其中一方，不得留下未記錄的 CPU 行為。
+[文件導覽](README.md) · [專案首頁](../README.md) · [v1.0 release manifest](../release/rv32i-core-v1.0.manifest.md)
+
+本文件是已封存 RV32I Core v1.0 的 architectural contract。它定義 release tag `rv32i-core-v1.0` 必須維持的行為；任何後續修改若改變本文所列 ISA、pipeline、memory、trap 或 retire contract，都必須使用新的版本號並同步更新測試與 release manifest。
 
 ## 1. 範圍與固定選擇
 
 | 項目 | v1.0 契約 |
 |---|---|
-| ISA | RV32I base，共 40 條：現有 37 條，加上 FENCE、ECALL、EBREAK |
+| ISA | RV32I base，共 40 條，包含 FENCE、ECALL、EBREAK |
 | 執行模型 | 四級、single-issue、in-order；每條合法且未發生例外的指令最多退休一次 |
 | XLEN | 32-bit；所有整數運算以 32-bit two's-complement wraparound |
 | Register file | x0 永遠讀出 0，對 x0 的寫入不產生 architectural effect；x1～x31 為 32-bit |
@@ -75,7 +77,7 @@ Retire event 的觀察點是 architectural commit：
 
 ## 6. 40 條指令契約與驗證矩陣
 
-狀態：40 條 RV32I base instruction 均已由 directed regression 覆蓋。下表是人類可讀契約；逐條的正向、corner、pipeline/control、trap/illegal 與 evidence 路徑記錄於 `verification/rv32i-directed.csv`，並由 `tools/check_rv32i_matrix.py` 強制檢查。表中的 trap 條件除明列者外，皆包含「encoding 的保留欄位不合法時 cause=2」。所有 `rd` 寫入都遵守 x0 suppression。
+狀態：40 條 RV32I base instruction 均已由 directed regression 覆蓋。下表是人類可讀契約；逐條的正向、corner、pipeline/control、trap/illegal 與 evidence 路徑記錄於 [`verification/rv32i-directed.csv`](../verification/rv32i-directed.csv)，並由 `tools/check_rv32i_matrix.py` 強制檢查。表中的 trap 條件除明列者外，皆包含「encoding 的保留欄位不合法時 cause=2」。所有 `rd` 寫入都遵守 x0 suppression。
 
 | # | 指令／decode | operands 與結果 | architectural side effect | trap 條件 | 對應測試／狀態 |
 |---:|---|---|---|---|---|
@@ -135,7 +137,11 @@ Retire event 的觀察點是 architectural commit：
 
 ## 9. v1.0 synthesis 與 simulation 分界
 
-- 正式 synthesis top 是 `CPU_Core`；其 source file list 鎖定於 `release/rv32i-core-v1.0.manifest.md`。
+- 正式 synthesis top 是 `CPU_Core`；其 source file list 鎖定於 [v1.0 release manifest](../release/rv32i-core-v1.0.manifest.md)。
 - `CPU_Sim_Top`、`CPU_Top`、`Program_ROM`、`Data_Memory` 與 `Arch_Test_Memory` 是 simulation/compatibility wrapper，不納入 v1.0 synthesizable hierarchy。
 - `IFID.sv` 是可綜合的教學/備選模組，但目前未被 `CPU_Core` 實例化，因此不納入 v1.0 synthesis file list。
 - memory request 沒有 ready/backpressure 或 transaction ID；每側至多一筆、固定一週期、in-order response。任何 wait-state 或多筆 outstanding 支援都屬於後續版本的介面變更。
+
+---
+
+[上一篇：文件導覽](README.md) · [下一篇：程式映像與記憶體配置](program-image-memory-map.md) · [查看 v1.0 release](../release/rv32i-core-v1.0.manifest.md)

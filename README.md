@@ -4,7 +4,19 @@
 
 目前設計適合用來學習 CPU datapath、pipeline control 與驗證方法；它還不是可直接 tape-out 的完整 RISC-V SoC。
 
-RV32I Core v1.0 的完整 ISA、reset、memory、trap 與 retire 契約，以及 40 條指令的逐項驗證矩陣，請見 [`docs/rv32i-core-spec.md`](docs/rv32i-core-spec.md)。該文件描述最終 v1.0 目標；本 README 描述目前已實作狀態。
+RV32I Core v1.0 已封存。完整 ISA、reset、memory、trap 與 retire 契約，以及 40 條指令的逐項驗證矩陣，請見 [v1.0 規格契約](docs/rv32i-core-spec.md)；本 README 則提供專案入口、架構概觀與可重現的驗證方式。
+
+## 文件閱讀順序
+
+完整導覽集中在 [docs/README.md](docs/README.md)。第一次閱讀建議依序查看：
+
+1. 本頁的[快速開始](#快速開始)與[架構說明](#pipeline-架構)。
+2. [RV32I Core v1.0 規格契約](docs/rv32i-core-spec.md)。
+3. [程式映像與記憶體配置](docs/program-image-memory-map.md)。
+4. [ACT4 驗證指南](verification/arch-test/README.md)與[RTL 品質稽核](verification/rtl-quality-audit.md)。
+5. [v1.0 release manifest](release/rv32i-core-v1.0.manifest.md)。
+
+[index.html](index.html) 是學習步驟與完成進度頁；規格或 release 身分仍以 Markdown 契約與 Git tag 為準。
 
 ## 快速開始
 
@@ -455,7 +467,7 @@ RV32I Core v1.0 已完成 lint、side-effect audit 與完整 regression；封版
 - 沒有可變延遲 memory handshake；目前只支援既定的一個 cycle response contract。
 - 一般 split-memory simulation 預設使用 64-word Program ROM 與 4 KiB Data Memory；ACT4/compiled-program wrapper 另使用 32 MiB unified simulation memory。這些都是模擬模型，不代表實體 SRAM 容量。
 - 已能載入由 Assembly/ELF 產生的 IMEM/DMEM HEX；尚未連接 Spike/QEMU 通用差分測試。
-- 尚未進行 lint、CDC、formal verification、synthesis、STA、DFT、place-and-route 或 signoff。
+- 已完成 Verilator lint；尚未進行 CDC、formal verification、synthesis、STA、DFT、place-and-route 或 signoff。
 
 ## ASIC 化時的下一層工作
 
@@ -466,3 +478,7 @@ RV32I Core v1.0 已完成 lint、side-effect audit 與完整 regression；封版
 3. Exception、interrupt、misalignment trap 與 machine-mode CSR。
 4. 可載入 ELF 的軟體流程，以及 Spike/QEMU differential testing。
 5. Lint、synthesis constraints、STA、formal checks 與 physical-design flow。
+
+---
+
+[文件導覽](docs/README.md) · [Core v1.0 規格](docs/rv32i-core-spec.md) · [v1.0 release manifest](release/rv32i-core-v1.0.manifest.md)
