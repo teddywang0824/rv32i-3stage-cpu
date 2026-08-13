@@ -48,6 +48,8 @@ ECALL 使用專案定義的 environment-call cause `11`，但不表示 v1.0 實�
 
 目前 simulation model 為 1024 × 32-bit（4 KiB），以 `address[11:2]` 索引。地址超出低 4 KiB 的處理尚無硬體保護，因此程式必須限制在該 window；v1.0 不宣告 access-fault exception。
 
+程式映像工具使用獨立的 ELF packaging map：`.text` 位於 `0x0000_0000`–`0x0000_00FF`，`.data` 位於 `0x1000_0000`–`0x1000_0FFF`。轉換成 DMEM HEX 時必須從 data ELF address 減去 `0x1000_0000`；CPU runtime data address 仍為低 4 KiB offset。完整換算、容量檢查與 runtime symbol 限制見 [`program-image-memory-map.md`](program-image-memory-map.md)。ELF 的高位 data base 不是目前硬體的 DMEM base，也不得把現有模型忽略高位 address 的 alias 行為當成 architectural contract。
+
 自然對齊規則：byte 可位於任一 offset；halfword 需要 `address[0]=0`；word 需要 `address[1:0]=00`。misaligned Load/Store 不得送達 Data Memory，也不得寫回 register，並分別回報 cause 4/6、`tval=fault address`。
 
 ## 5. Trap 與 retire 語意
@@ -73,7 +75,7 @@ Retire event 的觀察點是 architectural commit：
 
 ## 6. 40 條指令契約與驗證矩陣
 
-狀態：**已驗證**表示目前 regression 已覆蓋主要語意；**待新增**表示屬於後續 v1.0 工作。表中的 trap 條件除明列者外，皆包含「encoding 的保留欄位不合法時 cause=2」。所有 `rd` 寫入都遵守 x0 suppression。
+狀態：40 條 RV32I base instruction 均已由 directed regression 覆蓋。下表是人類可讀契約；逐條的正向、corner、pipeline/control、trap/illegal 與 evidence 路徑記錄於 `verification/rv32i-directed.csv`，並由 `tools/check_rv32i_matrix.py` 強制檢查。表中的 trap 條件除明列者外，皆包含「encoding 的保留欄位不合法時 cause=2」。所有 `rd` 寫入都遵守 x0 suppression。
 
 | # | 指令／decode | operands 與結果 | architectural side effect | trap 條件 | 對應測試／狀態 |
 |---:|---|---|---|---|---|
@@ -98,25 +100,25 @@ Retire event 的觀察點是 architectural commit：
 | 19 | AND `OP/111`, `funct7=0000000` | `rs1 AND rs2` | rd write | 其他 funct7 illegal | `tb_CPU_Top`, `tb_ALU`／已驗證 |
 | 20 | LUI `LUI` | `rd=imm[31:12]<<12` | rd write | 無額外條件 | `tb_CPU_Top`, `tb_Inst_Decoder`／已驗證 |
 | 21 | AUIPC `AUIPC` | `rd=PC+(imm[31:12]<<12)` | rd write | 無額外條件 | `tb_CPU_Top`, `tb_CPU_Retire`／已驗證 |
-| 22 | BEQ `BRANCH/000` | compare `rs1==rs2`; target `PC+sext(B-imm)` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_Branch_Unit`／已驗證（trap 待新增） |
-| 23 | BNE `BRANCH/001` | compare `rs1!=rs2`; target `PC+sext(B-imm)` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_Branch_Unit`／已驗證（trap 待新增） |
-| 24 | BLT `BRANCH/100` | signed `rs1<rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_Branch_Unit`／已驗證（trap 待新增） |
-| 25 | BGE `BRANCH/101` | signed `rs1>=rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_Branch_Unit`／已驗證（trap 待新增） |
-| 26 | BLTU `BRANCH/110` | unsigned `rs1<rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_Branch_Unit`／已驗證（trap 待新增） |
-| 27 | BGEU `BRANCH/111` | unsigned `rs1>=rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_Branch_Unit`／已驗證（trap 待新增） |
-| 28 | JAL `JAL` | target `PC+sext(J-imm)`; link `PC+4` | rd write + redirect | target misaligned cause 0 | `tb_CPU_JAL`, `tb_Branch_Unit`／已驗證（trap 待新增） |
-| 29 | JALR `JALR/000` | target `(rs1+sext(imm12)) & ~1`; link `PC+4` | rd write + redirect | target `[1:0]!=00` cause 0 | `tb_CPU_JALR`, `tb_Branch_Unit`／已驗證（trap 待新增） |
+| 22 | BEQ `BRANCH/000` | compare `rs1==rs2`; target `PC+sext(B-imm)` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 23 | BNE `BRANCH/001` | compare `rs1!=rs2`; target `PC+sext(B-imm)` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 24 | BLT `BRANCH/100` | signed `rs1<rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 25 | BGE `BRANCH/101` | signed `rs1>=rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 26 | BLTU `BRANCH/110` | unsigned `rs1<rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 27 | BGEU `BRANCH/111` | unsigned `rs1>=rs2` | PC redirect iff taken | taken target misaligned cause 0 | `tb_CPU_Branch`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 28 | JAL `JAL` | target `PC+sext(J-imm)`; link `PC+4` | rd write + redirect | target misaligned cause 0 | `tb_CPU_JAL`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 29 | JALR `JALR/000` | target `(rs1+sext(imm12)) & ~1`; link `PC+4` | rd write + redirect | target `[1:0]!=00` cause 0 | `tb_CPU_JALR`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
 | 30 | LB `LOAD/000` | byte at `rs1+sext(imm12)`, sign extend | memory read + rd write | 無 alignment trap | `tb_CPU_Load`, `tb_Load_Unit`／已驗證 |
-| 31 | LH `LOAD/001` | halfword, sign extend | memory read + rd write | address[0] cause 4 | `tb_CPU_Load`, `tb_Load_Unit`／已驗證（trap 待新增） |
-| 32 | LW `LOAD/010` | 32-bit word | memory read + rd write | address[1:0] cause 4 | `tb_CPU_Load`, `tb_Load_Unit`, `tb_CPU_Load_Hazard`／已驗證（trap 待新增） |
+| 31 | LH `LOAD/001` | halfword, sign extend | memory read + rd write | address[0] cause 4 | `tb_CPU_Load`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 32 | LW `LOAD/010` | 32-bit word | memory read + rd write | address[1:0] cause 4 | `tb_CPU_Load`, `tb_CPU_Load_Hazard`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
 | 33 | LBU `LOAD/100` | byte, zero extend | memory read + rd write | 無 alignment trap | `tb_CPU_Load`, `tb_Load_Unit`／已驗證 |
-| 34 | LHU `LOAD/101` | halfword, zero extend | memory read + rd write | address[0] cause 4 | `tb_CPU_Load`, `tb_Load_Unit`／已驗證（trap 待新增） |
+| 34 | LHU `LOAD/101` | halfword, zero extend | memory read + rd write | address[0] cause 4 | `tb_CPU_Load`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
 | 35 | SB `STORE/000` | low byte of rs2 to effective address | one byte lane write | 無 alignment trap | `tb_CPU_Store`, `tb_Store_Unit`／已驗證 |
-| 36 | SH `STORE/001` | low halfword of rs2 | two byte lanes write | address[0] cause 6 | `tb_CPU_Store`, `tb_Store_Unit`／已驗證（trap 待新增） |
-| 37 | SW `STORE/010` | all 32 bits of rs2 | four byte lanes write | address[1:0] cause 6 | `tb_CPU_Store`, `tb_Store_Unit`／已驗證（trap 待新增） |
-| 38 | FENCE `MISC-MEM/000` | pred/succ/fm are ordering metadata；rd/rs1 欄位不讀取、不形成 dependency | no register/memory write; ordering point retires | 其他 funct3 illegal | `tb_CPU_Fence`／待新增 |
-| 39 | ECALL exact `0x00000073` | no operands/result | trap only | cause 11, tval=0 | `tb_CPU_System`／待新增 |
-| 40 | EBREAK exact `0x00100073` | no operands/result | trap only | cause 3, tval=0 | `tb_CPU_System`／待新增 |
+| 36 | SH `STORE/001` | low halfword of rs2 | two byte lanes write | address[0] cause 6 | `tb_CPU_Store`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 37 | SW `STORE/010` | all 32 bits of rs2 | four byte lanes write | address[1:0] cause 6 | `tb_CPU_Store`, `tb_CPU_Alignment`, `tb_CPU_Directed`／已驗證 |
+| 38 | FENCE `MISC-MEM/000` | pred/succ/fm are ordering metadata；rd/rs1 欄位不讀取、不形成 dependency | no register/memory write; ordering point retires | 其他 funct3 illegal | `tb_CPU_FENCE`, `tb_CPU_Directed`／已驗證 |
+| 39 | ECALL exact `0x00000073` | no operands/result | trap only | cause 11, tval=0 | `tb_CPU_SYSTEM`／已驗證 |
+| 40 | EBREAK exact `0x00100073` | no operands/result | trap only | cause 3, tval=0 | `tb_CPU_SYSTEM`, `tb_CPU_Image`, `tb_CPU_Directed`／已驗證 |
 
 ## 7. FENCE ordering contract
 
@@ -126,7 +128,7 @@ Retire event 的觀察點是 architectural commit：
 
 ## 8. 驗收與變更規則
 
-- 目前 37 條指令的 regression 入口是 `./run_tests.sh all`；失敗必須回傳非零 exit code。
-- 後續每加入 FENCE、SYSTEM 或 precise trap，必須更新本矩陣的狀態及對應測試，不可只修改 RTL。
+- 40 條指令的 directed regression 入口是 `./run_tests.sh directed`；完整入口是 `./run_tests.sh all`，失敗皆回傳非零 exit code。
+- machine-readable matrix 必須維持 40 筆唯一指令，且每筆均有正向、corner、pipeline/control、trap/illegal 與存在的 evidence file。
 - 任何 ISA、pipeline latency、reset vector、memory timing、trap/retire ports 或 alignment policy 變更，都屬於契約變更，必須同步更新 README、測試與 release manifest。
 - v1.0 封版條件是 40 條矩陣全部有正向與必要 corner-case 測試、所有 trap 行為符合本文件、完整 regression 通過。

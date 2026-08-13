@@ -1,4 +1,6 @@
-module Data_Memory (
+module Data_Memory #(
+    parameter INIT_FILE = ""
+) (
     input logic clk,
     input logic mem_en,
     input logic mem_write,
@@ -10,6 +12,15 @@ module Data_Memory (
     output logic read_valid
 );
     logic [31:0] memory [0:1023];
+    integer i;
+
+    initial begin
+        for (i = 0; i < 1024; i = i + 1)
+            memory[i] = 32'd0;
+
+        if (INIT_FILE != "")
+            $readmemh(INIT_FILE, memory);
+    end
 
     always_ff @(posedge clk) begin 
         if (mem_en && mem_write) begin

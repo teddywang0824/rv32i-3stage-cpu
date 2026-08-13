@@ -12,7 +12,8 @@ RV32I Core v1.0 的完整 ISA、reset、memory、trap 與 retire 契約，以及
 
 - Windows：編輯程式與瀏覽 `index.html`
 - WSL：執行 Bash、Icarus Verilog 與測試
-- 必要命令：`iverilog`、`vvp`
+- 必要命令：`iverilog`、`vvp`、`python3`
+- 程式映像流程另需 RISC-V GNU bare-metal toolchain：`riscv64-unknown-elf-gcc`、`objcopy`、`objdump`、`readelf`、`nm`
 
 在 WSL 中進入專案：
 
@@ -31,6 +32,17 @@ cd /mnt/d/CodeProject/cpu_build
 ```bash
 ./run_tests.sh retire
 ```
+
+從 Assembly 建立 ELF/HEX 並執行映像整合測試：
+
+```bash
+./run_tests.sh image
+```
+
+這條命令會以 `-march=rv32i -mabi=ilp32` 編譯
+`programs/image_smoke.S`，產生 ELF、map、objdump、section/symbol report、
+IMEM/DMEM HEX，驗證彼此一致後再啟動 CPU simulation。產生的檔案位於
+`build/programs/image_smoke/`。
 
 測試成功時 process exit code 為 `0`，並印出 `[PASS]`。整合測試產生的 VCD waveform 位於 `build/`。
 
@@ -112,7 +124,11 @@ flowchart TD
 - reset 或 `kill_response` 使 response invalid
 - `kill_response` 與 fetch 同時發生時，kill 優先
 
-各 CPU testbench 會在解除 reset 前直接載入 `CPU_Sim_Top.u_Program_Rom.memory[]`。未來替換 SRAM IP 時，只需修改 wrapper 並維持相同 transaction contract，不需修改 `CPU_Core`。
+一般 CPU 單元／整合 testbench 可在解除 reset 前直接載入
+`CPU_Sim_Top.u_Program_Rom.memory[]`；正式程式映像測試則透過
+`IMEM_INIT_FILE` 與 `$readmemh` 載入 build script 生成的 HEX。未來替換
+SRAM IP 時，只需修改 wrapper 並維持相同 transaction contract，不需修改
+`CPU_Core`。
 
 ### Data Memory
 
@@ -125,9 +141,11 @@ flowchart TD
 
 目前沒有 bus protocol、cache、MMU、memory protection 或 wait-state/backpressure。有效使用範圍是測試模型定義的低位址 memory window。
 
+外部程式映像的正式 ELF/IMEM/DMEM 位址配置與 data rebase 規則記錄於 [`docs/program-image-memory-map.md`](docs/program-image-memory-map.md)。其中 ELF `.data` 使用 `0x1000_0000` 作為封裝 base，但 CPU runtime Data Memory 仍使用低 4 KiB offset。
+
 ## 支援的指令
 
-目前 RTL 已實作下列 37 條。v1.0 契約另包含尚待後續里程碑實作的 FENCE、ECALL 與 EBREAK。
+目前 RTL 已實作 RV32I base 的 40 條指令，包含 FENCE、ECALL 與 EBREAK。
 
 | 類型 | 指令 |
 |---|---|
@@ -138,8 +156,11 @@ flowchart TD
 | Jump | JAL, JALR |
 | Load | LB, LH, LW, LBU, LHU |
 | Store | SB, SH, SW |
+| Memory ordering | FENCE |
+| System trap | ECALL, EBREAK |
 
-未知 opcode 與保留 funct3/funct7 會被轉成無副作用操作。這是目前教學 CPU 的安全行為，不等同於完整 RISC-V illegal-instruction exception。
+未知 opcode 與保留 funct3/funct7 會產生 precise illegal-instruction trap；
+faulting instruction 不退休且無 register/memory/control-flow side effect。
 
 ## Retire trace
 
@@ -158,7 +179,10 @@ flowchart TD
 | `retire_mem_data` | 已對齊的 Store data |
 | `retire_mem_byte_enable` | Store byte lanes |
 
-`tb_CPU_Retire.sv` 會將 14 筆 ordered retire events 與固定 golden trace 逐條比較。測試包含 ALU、Load/Store、load-use stall、taken Branch、JAL/JALR、LUI/AUIPC、wrong-path、非法指令及 misaligned access。
+`tb_CPU_Retire.sv` 會將 12 筆 ordered retire events 與固定 golden trace
+逐條比較，另驗證三筆 precise trap。測試包含 ALU、Load/Store、load-use
+stall、taken Branch、JAL/JALR、LUI/AUIPC、wrong-path、非法指令及
+misaligned access。
 
 目前這是固定程式的 golden trace，不是可執行任意 ELF 的 Spike/QEMU 通用差分測試平台。
 
@@ -203,7 +227,10 @@ flowchart TD
 | `./run_tests.sh loadhazard` | Load consumer stall/hold/bubble integration |
 | `./run_tests.sh illegal` | 非法 instruction 無 register/memory/control-flow 副作用 |
 | `./run_tests.sh program` | 四元素 array sum integration program |
-| `./run_tests.sh retire` | 14 筆 ordered golden retire trace |
+| `./run_tests.sh retire` | 12 筆 ordered golden retire trace 與三筆 precise trap |
+| `./run_tests.sh image` | `.S → ELF → IMEM/DMEM HEX → artifact verification → CPU simulation` |
+| `./run_tests.sh imagetools` | binary-to-word-HEX host-side converter tests |
+| `./run_tests.sh directed` | 40/40 traceability matrix + 38 normal instructions directed ELF + ordered retire/signature test |
 | `./run_tests.sh programrom` | 同步 fetch response contract |
 | `./run_tests.sh hazard` | forwarding integration observation |
 
@@ -211,16 +238,21 @@ flowchart TD
 
 學習進度與各里程碑驗收標準請開啟 `index.html`。
 
+40 條指令逐項的正向、corner、pipeline/control、trap/illegal 與 evidence
+記錄於 [`verification/rv32i-directed.csv`](verification/rv32i-directed.csv)。
+`directed` regression 會先檢查矩陣完整性與所有 evidence path，再建立並
+執行 `programs/rv32i_directed.S`。
+
 ## 已知限制
 
-- 僅實作上述 RV32I 子集；未實作 FENCE、ECALL、EBREAK、CSR 與 privileged architecture。
-- 沒有 exception、interrupt 或 trap handler；非法指令被安全忽略。
-- misaligned Load/Store 目前抑制副作用，不產生 RISC-V exception。
+- 已實作 RV32I base 40 條指令；未實作 CSR、privileged architecture 與 interrupt。
+- precise synchronous trap 透過外部 ack/redirect contract 處理，沒有 `mtvec`、`mepc`、`mcause` 等 privileged CSR。
+- misaligned instruction target 與 Load/Store 會產生 precise trap，但不支援硬體跨 word access。
 - Instruction/Data Memory 是 testbench-friendly model，不是 ASIC SRAM macro。
 - 沒有 instruction/data bus protocol、cache、MMU 或外部 memory arbitration。
 - 沒有可變延遲 memory handshake；目前只支援既定的一個 cycle response contract。
 - `Program_ROM` 只有 64 words，`Data_Memory` 只有 4 KiB。
-- golden retire trace 只驗證固定混合程式，尚未載入 ELF 或連接 Spike/QEMU。
+- 已能載入由 Assembly/ELF 產生的 IMEM/DMEM HEX；尚未連接 Spike/QEMU 通用差分測試。
 - 尚未進行 lint、CDC、formal verification、synthesis、STA、DFT、place-and-route 或 signoff。
 
 ## ASIC 化時的下一層工作

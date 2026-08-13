@@ -1,0 +1,41 @@
+index,mnemonic,positive,corner,pipeline_or_control,trap_or_illegal,evidence
+1,ADDI,negative immediate,-2048 and 2047;x0 destination,EX/WB forwarding,n/a,tb/tb_CPU_Top.sv;tb/tb_Control_Unit.sv;programs/rv32i_directed.S
+2,SLTI,signed comparison,negative operands;signed extrema,EX/WB forwarding,n/a,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+3,SLTIU,unsigned comparison,0xffffffff versus 1,EX/WB forwarding,n/a,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+4,XORI,bitwise immediate,-1 immediate,EX/WB forwarding,n/a,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+5,ORI,bitwise immediate,immediate bit pattern,EX/WB forwarding,n/a,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+6,ANDI,bitwise immediate,mask boundary,EX/WB forwarding,n/a,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+7,SLLI,left shift,shamt 0 and 31,EX/WB forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_CPU_Illegal.sv;programs/rv32i_directed.S
+8,SRLI,logical right shift,shamt 0 and 31,EX/WB forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_CPU_Illegal.sv;programs/rv32i_directed.S
+9,SRAI,arithmetic right shift,negative value;shamt 31,EX/WB forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_CPU_Illegal.sv;programs/rv32i_directed.S
+10,ADD,register addition,wraparound;x0 operands,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_CPU_Illegal.sv;programs/rv32i_directed.S
+11,SUB,register subtraction,negative result,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_CPU_Illegal.sv;programs/rv32i_directed.S
+12,SLL,register shift,rs2 low five bits,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+13,SLT,signed register comparison,0x80000000 versus 0x7fffffff,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+14,SLTU,unsigned register comparison,0xffffffff versus 1,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+15,XOR,register bitwise XOR,complementary patterns,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+16,SRL,logical register shift,negative source interpreted unsigned,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+17,SRA,arithmetic register shift,negative sign fill,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+18,OR,register bitwise OR,overlapping patterns,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+19,AND,register bitwise AND,mask pattern,dual-source forwarding,reserved funct7 cause 2,tb/tb_CPU_Top.sv;tb/tb_ALU.sv;programs/rv32i_directed.S
+20,LUI,upper immediate,zero and high-bit immediate,no source dependency,n/a,tb/tb_CPU_Top.sv;tb/tb_Control_Unit.sv;programs/rv32i_directed.S
+21,AUIPC,PC plus upper immediate,nonzero PC,no source dependency,n/a,tb/tb_CPU_Top.sv;tb/tb_CPU_Retire.sv;programs/rv32i_directed.S
+22,BEQ,equal taken and unequal not-taken,positive and negative offset,forwarded operands;wrong-path kill,misaligned taken target cause 0,tb/tb_CPU_Branch.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+23,BNE,unequal taken and equal not-taken,positive and negative offset,forwarded operands;wrong-path kill,misaligned taken target cause 0,tb/tb_CPU_Branch.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+24,BLT,signed taken and not-taken,negative versus positive;equal,forwarded operands;wrong-path kill,misaligned taken target cause 0,tb/tb_CPU_Branch.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+25,BGE,signed taken and not-taken,negative versus positive;equal,forwarded operands;wrong-path kill,misaligned taken target cause 0,tb/tb_CPU_Branch.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+26,BLTU,unsigned taken and not-taken,0xffffffff versus 1;equal,forwarded operands;wrong-path kill,misaligned taken target cause 0,tb/tb_CPU_Branch.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+27,BGEU,unsigned taken and not-taken,0xffffffff versus 1;equal,forwarded operands;wrong-path kill,misaligned taken target cause 0,tb/tb_CPU_Branch.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+28,JAL,PC-relative jump,positive and negative offset;rd x0,link forwarding;wrong-path kill,misaligned target cause 0,tb/tb_CPU_JAL.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+29,JALR,register-indirect jump,negative immediate;bit0 clear;rd x0,base/link forwarding;wrong-path kill,reserved funct3 cause 2;misaligned target cause 0,tb/tb_CPU_JALR.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+30,LB,signed byte load,offsets 0 through 3;sign extension,load-use and base forwarding,n/a,tb/tb_CPU_Load.sv;tb/tb_CPU_Load_Hazard.sv;programs/rv32i_directed.S
+31,LH,signed halfword load,offsets 0 and 2;sign extension,load-use and base forwarding,odd address cause 4,tb/tb_CPU_Load.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+32,LW,word load,negative immediate;aligned boundary,load-use and base forwarding,offsets 1 2 3 cause 4,tb/tb_CPU_Load.sv;tb/tb_CPU_Load_Hazard.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+33,LBU,unsigned byte load,offsets 0 through 3;zero extension,load-use and base forwarding,n/a,tb/tb_CPU_Load.sv;tb/tb_CPU_Load_Hazard.sv;programs/rv32i_directed.S
+34,LHU,unsigned halfword load,offsets 0 and 2;zero extension,load-use and base forwarding,odd address cause 4,tb/tb_CPU_Load.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+35,SB,byte store,offsets 0 through 3,base and data forwarding;wrong-path kill,n/a,tb/tb_CPU_Store.sv;tb/tb_CPU_Load_Hazard.sv;programs/rv32i_directed.S
+36,SH,halfword store,offsets 0 and 2,base and data forwarding;wrong-path kill,offsets 1 and 3 cause 6,tb/tb_CPU_Store.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+37,SW,word store,negative immediate;aligned boundary,base and data forwarding;wrong-path kill,offsets 1 2 3 cause 6,tb/tb_CPU_Store.sv;tb/tb_CPU_Alignment.sv;programs/rv32i_directed.S
+38,FENCE,legal ordering point,nonzero pred succ fm and ignored rd rs1 fields,no source dependency;ordered Store Load,reserved funct3 cause 2,tb/tb_CPU_FENCE.sv;programs/rv32i_directed.S
+39,ECALL,environment-call trap,exact 32-bit encoding,older retire;younger kill;ack redirect,cause 11 tval 0;nearby SYSTEM cause 2,tb/tb_CPU_SYSTEM.sv
+40,EBREAK,breakpoint trap,exact 32-bit encoding,older retire;younger kill;ack redirect,cause 3 tval 0;does not retire,tb/tb_CPU_SYSTEM.sv;tb/tb_CPU_Image.sv;programs/rv32i_directed.S

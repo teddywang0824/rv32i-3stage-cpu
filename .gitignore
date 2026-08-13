@@ -2,3 +2,6 @@ build/
 tmp/
 docs/*
 !docs/rv32i-core-spec.md
+!docs/program-image-memory-map.md
+__pycache__/
+*.pyc

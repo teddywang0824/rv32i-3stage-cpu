@@ -51,7 +51,9 @@
 //     end
 // endmodule
 
-module Program_ROM (
+module Program_ROM #(
+    parameter INIT_FILE = ""
+) (
     input  logic        clk,
     input  logic        rst,
 
@@ -65,6 +67,15 @@ module Program_ROM (
 );
 
     logic [31:0] memory [0:63];
+    integer i;
+
+    initial begin
+        for (i = 0; i < 64; i = i + 1)
+            memory[i] = `I_NOP;
+
+        if (INIT_FILE != "")
+            $readmemh(INIT_FILE, memory);
+    end
 
     always_ff @(posedge clk) begin
         if (rst || kill_response) begin

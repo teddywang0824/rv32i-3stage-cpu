@@ -1,4 +1,7 @@
-module CPU_Sim_Top (
+module CPU_Sim_Top #(
+    parameter IMEM_INIT_FILE = "",
+    parameter DMEM_INIT_FILE = ""
+) (
     input  logic        clk,
     input  logic        rst,
 
@@ -70,7 +73,9 @@ module CPU_Sim_Top (
         .retire_mem_byte_enable (retire_mem_byte_enable)
     );
 
-    Program_ROM u_Program_Rom (
+    Program_ROM #(
+        .INIT_FILE (IMEM_INIT_FILE)
+    ) u_Program_Rom (
         .clk            (clk),
         .rst            (rst),
         .fetch_en       (imem_req_valid),
@@ -81,7 +86,9 @@ module CPU_Sim_Top (
         .response_inst  (imem_resp_inst)
     );
 
-    Data_Memory u_Data_Memory (
+    Data_Memory #(
+        .INIT_FILE (DMEM_INIT_FILE)
+    ) u_Data_Memory (
         .clk         (clk),
         .mem_en      (dmem_req_valid),
         .mem_write   (dmem_req_write),
