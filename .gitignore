@@ -5,3 +5,4 @@ docs/*
 !docs/program-image-memory-map.md
 __pycache__/
 *.pyc
+external/riscv-arch-test/

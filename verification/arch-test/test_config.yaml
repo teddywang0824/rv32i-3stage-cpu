@@ -1,8 +1,8 @@
 # ACT4 framework configuration for CPU Build.
 name: cpu-build-rv32i
-compiler_exe: riscv64-unknown-elf-gcc
-objdump_exe: riscv64-unknown-elf-objdump
-ref_model_exe: sail_riscv_sim
+compiler_exe: /opt/riscv/gcc-15.2.0/bin/riscv-none-elf-gcc
+objdump_exe: /opt/riscv/gcc-15.2.0/bin/riscv-none-elf-objdump
+ref_model_exe: /home/yuan/.local/opt/sail-riscv-0.13.1/bin/sail_riscv_sim
 udb_config: cpu-build-rv32i.yaml
 linker_script: link.ld
 dut_include_dir: .

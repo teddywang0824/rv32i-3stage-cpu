@@ -1,71 +1,61 @@
 # CPU Build 的 ACT4 架構測試設定
 
-本目錄保存 CPU Build 接入 RISC-V Architectural Certification Tests（ACT）所需的 DUT 設定。這些設定描述目前 RTL 真正具備的能力，不把尚未實作的 privileged architecture、CSR 或 interrupt 宣告為已支援。
+本目錄保存 CPU Build 接入 RISC-V Architectural Certification Tests（ACT4）所需的 DUT、UDB、Sail 與連結設定。目前「設定與最小 ELF 產生」已驗證通過；RTL 記憶體 adapter、通用 testbench 與完整 RV32I regression 仍屬 Step 34 後續子步驟。
 
-目前只完成 Step 34.1 與 34.2：DUT 能力定義及 ACT4 設定骨架。記憶體擴充、ELF/HEX 轉換、通用 testbench 與批次執行器會在後續子步驟完成，因此本目錄現在還不能直接跑完整 ACT regression。
+## DUT 能力與測試範圍
 
-## DUT 能力
-
-| 項目 | 目前設定 |
+| 項目 | 設定 |
 | --- | --- |
-| XLEN | 32 |
-| Base ISA | RV32I 2.1 |
-| ABI | ILP32 |
+| XLEN / Base ISA | RV32I 2.1，ILP32 |
 | 位元組序 | Little-endian |
-| Instruction alignment | IALIGN=32（指令位址須為 4-byte 對齊） |
-| Reset vector | `0x00000000` |
-| Instruction memory | `0x00000000` 起，目前 256 bytes |
-| Data memory | `0x10000000` 起，目前 4096 bytes |
-| ACT pass/fail status | `0x10000ff0`；`1` 表示通過，`3` 表示失敗 |
+| Instruction alignment | IALIGN=32，不支援 compressed instruction |
+| Reset / test entry | `0x00000000` |
+| ACT 邏輯 RAM | `0x00000000`–`0x01ffffff`，32 MiB |
+| Pass/fail status | `0x01fffff0`；`1` 表示通過，`3` 表示失敗 |
+| Privileged tests | 關閉 |
 
-## 支援的指令與行為
+DUT 支援 RV32I、`FENCE`、`ECALL`、`EBREAK`，以及 illegal instruction、instruction/load/store address misaligned precise trap。不支援 RVC、RV32M、CSR、privileged mode、interrupt、cache、MMU 或 PMP。
 
-- RV32I base integer instructions。
-- `FENCE`：在目前沒有 cache、write buffer 與 outstanding memory transaction 的設計中視為可退休且無副作用的指令。
-- `ECALL` 與 `EBREAK`：辨識完整合法編碼，並由 Core 的外部 precise-trap 介面回報。
-- Illegal instruction、instruction-address-misaligned、load-address-misaligned 與 store-address-misaligned precise trap。
-- Misaligned halfword/word Load/Store 產生 trap，不由硬體拆成多次對齊存取，也不送出 Data Memory request。
+UDB 設定中的 `Sm 1.12.0` 只是 ACT4 產生 unprivileged 測試標頭所需的 machine execution environment。它不代表 RTL 已實作 privileged architecture：`include_priv_tests` 為 `false`、`MISA_CSR_IMPLEMENTED` 為 `false`，且 `RVMODEL_BOOT_TO_MMODE` 不執行 CSR 初始化。
 
-## 不支援的功能
+## 檔案用途
 
-- RVC／compressed instructions。
-- RV32M 與其他非 RV32I extensions。
-- Zicsr 與任何 CSR instruction。
-- Machine/Supervisor/User privileged execution environment。
-- Core 內部 trap handler、`mtvec`、`mepc`、`mcause`、`mtval` 等 privileged CSR。
-- Interrupt、cache、MMU、PMP 與虛擬記憶體。
+- `test_config.yaml`：ACT4 工具路徑與 DUT 設定入口。
+- `cpu-build-rv32i.yaml`：可由 UDB 驗證的 RV32I 能力宣告。
+- `sail.json`：與 DUT trap/misaligned 行為相符的 Sail reference-model 設定。
+- `rvmodel_macros.h`：boot、平台 hook，以及以 Store 回報 pass/fail 的 protocol。
+- `link.ld`：ACT self-checking ELF 使用的 32 MiB 統一邏輯記憶體配置。
+- `tool-versions.txt`：已驗證工具與來源版本。
 
-`ECALL`、`EBREAK` 及其他同步例外只會透過外部 trap handshake 回報；這不代表 DUT 具備 RISC-V machine-mode trap handling。ACT4 設定因此關閉 privileged tests。
+`rvtest_config.h` 與 `rvtest_config.svh` 不應放在本目錄；ACT4 會依 UDB 設定在 work directory 自動產生，手寫副本可能遮蔽生成結果。
 
-## 本目錄檔案
+## 已完成的驗證
 
-- `test_config.yaml`：ACT4 的工具與 DUT 路徑設定。
-- `cpu-build-rv32i.yaml`：UDB 格式的 RV32I 能力宣告。
-- `rvmodel_macros.h`：DUT 專用 pass/fail protocol；以 Store 寫入 status address。
-- `link.ld`：ACT 專用 section 與目前的 split IMEM/DMEM memory map。
-- `rvtest_config.h`、`rvtest_config.svh`：ACT4 目前仍要求手動提供的能力標記。
+- ACT4 能載入 `test_config.yaml`，且 compiler、objdump、Sail 路徑及版本檢查通過。
+- UDB 驗證回報 `Config cpu-build-rv32i is valid`。
+- Sail `--validate-config` 驗證通過。
+- 以官方 `I-nop-00.S` 跑完整 ACT4 build/reference/signature/self-checking pipeline，結果為 `7 succeeded`。
+- 產生的 ELF 為 ELF32 little-endian，入口為 `0x00000000`，`tohost` 位於 `0x01fffff0`；pass/fail Store 分別寫入 `1`/`3`。
+- 完整 ELF 反組譯未發現 compressed、CSR、`mret` 或 `wfi` 指令。
 
-## 與一般程式映像 linker script 的差異
+最小驗證產物位於 `build/arch-test/minimal/cpu-build-rv32i/elfs/rv32i/I/I-nop-00.elf`。
 
-`programs/link.ld` 供專案自己的 `_start` 程式使用；本目錄的 `link.ld` 則遵循 ACT4 要求，入口是 `rvtest_entry_point`，並保留 `.text.init`、`.text.rvtest`、`.data` 與 `.text.rvmodel`。兩者不能互換。
+## 產生官方 I-extension tests
 
-## 尚未完成
-
-- 目前 Program ROM 只有 64 words，ACT 程式很可能無法容納；Step 34.3 會將 IMEM/DMEM 容量參數化。
-- 尚未完成 ACT ELF 到分離式 IMEM/DMEM HEX 的轉換。
-- 尚未建立監看 pass/fail Store、timeout、unexpected trap 與 retire trace 的通用 testbench。
-- 尚未安裝或鎖定 ACT4、Sail、GCC/Binutils 與 Icarus Verilog 版本。
-- `cpu-build-rv32i.yaml` 是目前無 privileged extension 的最小 UDB 描述；實際執行 ACT4 時仍須用所鎖定版本的 schema 驗證。
-
-## 預計使用方式
-
-完成後，應從 `riscv-arch-test` repository 執行：
+在 WSL 的 `external/riscv-arch-test` 執行：
 
 ```bash
-CONFIG_FILES=/absolute/path/to/cpu_build/verification/arch-test/test_config.yaml \
-WORKDIR=/absolute/path/to/cpu_build/build/arch-test/act4 \
-EXTENSIONS=I \
-make --jobs
+make tests \
+  CONFIG_FILES=/mnt/d/CodeProject/cpu_build/verification/arch-test/test_config.yaml \
+  WORKDIR=/mnt/d/CodeProject/cpu_build/build/arch-test/act4 \
+  EXTENSIONS=I
 ```
 
-產生的 self-checking ELF 還必須經過本專案後續建立的 adapter 才能在 `CPU_Sim_Top` 上執行。
+## Step 34 尚待完成
+
+目前 RTL 仍使用容量有限且分離的 IMEM/DMEM，而 ACT ELF 採 32 MiB 統一邏輯位址。因此還需要：
+
+1. 將 simulation memory 容量參數化並提供統一的邏輯位址視圖。
+2. 建立 ELF/section 到 RTL memory image 的轉換與載入 adapter。
+3. 建立監看 pass/fail Store、timeout、unexpected trap 與 retire 狀態的通用 testbench/runner。
+4. 執行完整 RV32I ACT regression，全部通過後才可完成 Step 34 驗收並更新 `index.html`。

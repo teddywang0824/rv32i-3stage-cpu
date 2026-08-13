@@ -1,67 +1,58 @@
+/* CPU Build ACT4 memory map.  The simulation adapter will present this
+ * logical 32 MiB RAM to both instruction fetch and data access. */
+RAM_ORIGIN = 0x00000000;
+RAM_LENGTH = 0x02000000;
+TEST_BASE = 0x00000000;
+NUM_HARTS = 1;
+STACK_SIZE = 0x00020000;
+TEST_STATUS = 0x01fffff0;
+
 OUTPUT_ARCH(riscv)
 ENTRY(rvtest_entry_point)
 
 MEMORY
 {
-    IMEM (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00000100
-    DMEM (rw)  : ORIGIN = 0x10000000, LENGTH = 0x00001000
+  ram (rwx) : ORIGIN = RAM_ORIGIN, LENGTH = RAM_LENGTH
 }
+
+PROVIDE(__stack_size = STACK_SIZE);
+PROVIDE(__num_harts = NUM_HARTS);
 
 SECTIONS
 {
-    .text.init :
-    {
-        KEEP(*(.text.init))
-    } > IMEM
+  ASSERT(TEST_BASE >= ORIGIN(ram) && TEST_BASE < ORIGIN(ram) + LENGTH(ram),
+         "TEST_BASE is outside ACT RAM")
 
-    .text.rvtest :
-    {
-        *(.text.rvtest)
-        *(.text.rvtest.*)
-    } > IMEM
+  .text.init TEST_BASE : { KEEP(*(.text.init)) } > ram
+  .text.rvtest . : { *(.text.rvtest) *(.text.rvtest.*) } > ram
 
-    /* ACT4 requires .data to precede .text.rvmodel in section order. */
-    .data :
-    {
-        *(.data)
-        *(.data.*)
-        *(.rodata)
-        *(.rodata.*)
-    } > DMEM
+  . = ALIGN(0x4000);
+  .rodata . : { *(.rodata) *(.rodata.*) *(.srodata) *(.srodata.*) } > ram
+  .data . : { *(.data) *(.data.*) *(.sdata) *(.sdata.*) } > ram
 
-    .text.rvmodel :
-    {
-        *(.text.rvmodel)
-        *(.text.rvmodel.*)
-        *(.text)
-        *(.text.*)
-    } > IMEM
+  . = ALIGN(16);
+  .bss . (NOLOAD) :
+  {
+    __bss_start = .;
+    *(.sbss) *(.sbss.*) *(.bss) *(.bss.*) *(COMMON)
+    . = ALIGN(16);
+    __bss_end = .;
+  } > ram
 
-    .bss (NOLOAD) :
-    {
-        *(.bss)
-        *(.bss.*)
-        *(COMMON)
-    } > DMEM
+  . = ALIGN(16);
+  __stack_bottom = .;
+  . += __stack_size * __num_harts;
+  __stack_top = .;
 
-    .test_status 0x10000ff0 :
-    {
-        KEEP(*(.test_status))
-    } > DMEM
+  . = ALIGN(0x1000);
+  .text.rvmodel . :
+  {
+    *(.text.rvmodel) *(.text.rvmodel.*) *(.text) *(.text.*)
+  } > ram
 
-    _end = .;
+  ASSERT(. <= TEST_STATUS, "ACT ELF overlaps reserved test status word")
+  .test_status TEST_STATUS : { KEEP(*(.test_status)) } > ram
 
-    /DISCARD/ :
-    {
-        *(.comment)
-        *(.note*)
-        *(.eh_frame*)
-        *(.riscv.attributes)
-    }
+  _end = .;
+  ASSERT(_end <= ORIGIN(ram) + LENGTH(ram), "ACT ELF exceeds configured RAM")
 }
-
-ASSERT(DEFINED(rvtest_entry_point), "ACT link error: rvtest_entry_point is missing")
-ASSERT(SIZEOF(.text.init) + SIZEOF(.text.rvtest) + SIZEOF(.text.rvmodel) <= LENGTH(IMEM),
-       "ACT link error: code exceeds the current 256-byte IMEM")
-ASSERT(ADDR(.bss) + SIZEOF(.bss) <= 0x10000ff0,
-       "ACT link error: data overlaps the reserved test status word")

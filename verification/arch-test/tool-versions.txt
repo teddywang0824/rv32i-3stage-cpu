@@ -1,0 +1,25 @@
+Validated ACT4 toolchain (2026-08-13)
+
+ACT4 / riscv-arch-test
+  repository: external/riscv-arch-test
+  commit: b664a56b7b24a0ba7512f8df064f9e799e33c892
+
+RISC-V GCC
+  executable: /opt/riscv/gcc-15.2.0/bin/riscv-none-elf-gcc
+  version: xPack GNU RISC-V Embedded GCC 15.2.0
+
+GNU objdump / Binutils
+  executable: /opt/riscv/gcc-15.2.0/bin/riscv-none-elf-objdump
+  version: GNU Binutils 2.45
+
+Sail RISC-V
+  executable: /home/yuan/.local/opt/sail-riscv-0.13.1/bin/sail_riscv_sim
+  version: 0.13.1
+
+Icarus Verilog
+  executable: iverilog
+  version: 11.0
+
+mise
+  executable: /home/yuan/.local/bin/mise
+  version: 2026.8.5

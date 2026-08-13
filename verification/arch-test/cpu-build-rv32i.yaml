@@ -8,4 +8,62 @@ description: >-
   interface and no privileged execution modes, CSRs, or interrupts.
 implemented_extensions:
   - { name: I, version: "= 2.1" }
-params: {}
+  # ACT4/UDB requires an execution environment in order to define MXLEN and
+  # generate the headers used by unprivileged tests.  Privileged tests remain
+  # disabled in test_config.yaml and the DUT boot macro bypasses CSR setup.
+  - { name: Sm, version: "= 1.12.0" }
+params:
+  # Architectural width and address model.
+  MXLEN: 32
+  PHYS_ADDR_WIDTH: 32
+  M_MODE_ENDIANNESS: little
+
+  # The RTL has no CSRs.  These values describe the minimal machine execution
+  # environment ACT4 needs for unprivileged test generation; privileged tests
+  # are disabled and RVMODEL_BOOT_TO_MMODE is empty.
+  MISA_CSR_IMPLEMENTED: false
+  MTVEC_ACCESS: ro
+  MTVEC_MODES: [0]
+  MTVEC_ILLEGAL_WRITE_BEHAVIOR: custom
+  CONFIG_PTR_ADDRESS: 0x0
+  MARCHID_IMPLEMENTED: false
+  MIMPID_IMPLEMENTED: false
+  VENDOR_ID_BANK: 0
+  VENDOR_ID_OFFSET: 0
+  NUM_PMP_ENTRIES: 0
+  PMA_GRANULARITY: 2
+
+  # Precise synchronous traps implemented by the external trap interface.
+  PRECISE_SYNCHRONOUS_EXCEPTIONS: true
+  TRAP_ON_ECALL_FROM_M: true
+  TRAP_ON_EBREAK: true
+  TRAP_ON_UNIMPLEMENTED_INSTRUCTION: true
+  TRAP_ON_RESERVED_INSTRUCTION: true
+  TRAP_ON_UNIMPLEMENTED_CSR: true
+  TRAP_ON_ILLEGAL_WLRL: false
+
+  # Trap metadata policy exposed by trap_tval.
+  MTVAL_WIDTH: 32
+  REPORT_ENCODING_IN_MTVAL_ON_ILLEGAL_INSTRUCTION: true
+  REPORT_VA_IN_MTVAL_ON_BREAKPOINT: false
+  REPORT_VA_IN_MTVAL_ON_LOAD_MISALIGNED: true
+  REPORT_VA_IN_MTVAL_ON_STORE_AMO_MISALIGNED: true
+  REPORT_VA_IN_MTVAL_ON_INSTRUCTION_MISALIGNED: true
+  REPORT_VA_IN_MTVAL_ON_LOAD_ACCESS_FAULT: false
+  REPORT_VA_IN_MTVAL_ON_STORE_AMO_ACCESS_FAULT: false
+  REPORT_VA_IN_MTVAL_ON_INSTRUCTION_ACCESS_FAULT: false
+
+  # Misaligned halfword/word accesses trap instead of being split in hardware.
+  MISALIGNED_LDST: false
+  MISALIGNED_LDST_EXCEPTION_PRIORITY: high
+
+  # No architectural counters are implemented by this core.
+  HPM_COUNTER_EN: [false, false, false, false, false, false, false, false,
+                   false, false, false, false, false, false, false, false,
+                   false, false, false, false, false, false, false, false,
+                   false, false, false, false, false, false, false, false]
+  MCOUNTINHIBIT_IMPLEMENTED: false
+  MCOUNTENABLE_EN: [false, false, false, false, false, false, false, false,
+                    false, false, false, false, false, false, false, false,
+                    false, false, false, false, false, false, false, false,
+                    false, false, false, false, false, false, false, false]
