@@ -52,7 +52,8 @@
 // endmodule
 
 module Program_ROM #(
-    parameter INIT_FILE = ""
+    parameter INIT_FILE = "",
+    parameter integer WORDS = 64
 ) (
     input  logic        clk,
     input  logic        rst,
@@ -66,11 +67,11 @@ module Program_ROM #(
     output logic [31:0] response_inst
 );
 
-    logic [31:0] memory [0:63];
+    logic [31:0] memory [0:WORDS-1];
     integer i;
 
     initial begin
-        for (i = 0; i < 64; i = i + 1)
+        for (i = 0; i < WORDS; i = i + 1)
             memory[i] = `I_NOP;
 
         if (INIT_FILE != "")
@@ -82,7 +83,7 @@ module Program_ROM #(
             response_valid <= 0;
         end else if (fetch_en) begin
             response_pc <= fetch_addr;
-            response_inst <= memory[fetch_addr[7:2]];
+            response_inst <= memory[fetch_addr[31:2]];
             response_valid <= 1;
         end
     end

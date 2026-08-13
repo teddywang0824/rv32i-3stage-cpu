@@ -1,6 +1,6 @@
 # CPU Build 的 ACT4 架構測試設定
 
-本目錄保存 CPU Build 接入 RISC-V Architectural Certification Tests（ACT4）所需的 DUT、UDB、Sail 與連結設定。目前「設定與最小 ELF 產生」已驗證通過；RTL 記憶體 adapter、通用 testbench 與完整 RV32I regression 仍屬 Step 34 後續子步驟。
+本目錄保存 CPU Build 接入 RISC-V Architectural Certification Tests（ACT4）所需的 DUT、UDB、Sail、ELF adapter 與 RTL regression 設定。Step 34 已完成：目前 ACT4 產生的 39 項 RV32I I-extension self-checking tests 全部在 CPU RTL 上通過。
 
 ## DUT 能力與測試範圍
 
@@ -26,6 +26,9 @@ UDB 設定中的 `Sm 1.12.0` 只是 ACT4 產生 unprivileged 測試標頭所需�
 - `rvmodel_macros.h`：boot、平台 hook，以及以 Store 回報 pass/fail 的 protocol。
 - `link.ld`：ACT self-checking ELF 使用的 32 MiB 統一邏輯記憶體配置。
 - `tool-versions.txt`：已驗證工具與來源版本。
+- `run_arch_tests.sh`：將 ACT4 ELF 轉成稀疏 memory image，編譯共用 testbench 並批次執行。
+
+RTL adapter 由 `rtl/Arch_Test_Memory.sv`、`tools/elf_to_sparse_hex.py` 與 `tb/tb_ACT4.sv` 組成。一般測試仍使用原本的分離式 IMEM/DMEM；architectural tests 才會啟用 32 MiB 統一邏輯記憶體。
 
 `rvtest_config.h` 與 `rvtest_config.svh` 不應放在本目錄；ACT4 會依 UDB 設定在 work directory 自動產生，手寫副本可能遮蔽生成結果。
 
@@ -37,8 +40,10 @@ UDB 設定中的 `Sm 1.12.0` 只是 ACT4 產生 unprivileged 測試標頭所需�
 - 以官方 `I-nop-00.S` 跑完整 ACT4 build/reference/signature/self-checking pipeline，結果為 `7 succeeded`。
 - 產生的 ELF 為 ELF32 little-endian，入口為 `0x00000000`，`tohost` 位於 `0x01fffff0`；pass/fail Store 分別寫入 `1`/`3`。
 - 完整 ELF 反組譯未發現 compressed、CSR、`mret` 或 `wfi` 指令。
+- 39 項 RV32I ACT4 ELF 全部通過 RTL simulation，結果為 `passed=39 failed=0 total=39`。
+- `run_tests.sh all`（既有 unit/integration/directed tests 加 ACT4 regression）完整通過。
 
-最小驗證產物位於 `build/arch-test/minimal/cpu-build-rv32i/elfs/rv32i/I/I-nop-00.elf`。
+每個 architectural test 的轉換映像與 log 分別保存在 `build/arch-test/rtl/images/` 與 `build/arch-test/rtl/logs/`。
 
 ## 產生官方 I-extension tests
 
@@ -51,11 +56,18 @@ make tests \
   EXTENSIONS=I
 ```
 
-## Step 34 尚待完成
+## 執行 RTL architectural regression
 
-目前 RTL 仍使用容量有限且分離的 IMEM/DMEM，而 ACT ELF 採 32 MiB 統一邏輯位址。因此還需要：
+執行全部 39 項測試：
 
-1. 將 simulation memory 容量參數化並提供統一的邏輯位址視圖。
-2. 建立 ELF/section 到 RTL memory image 的轉換與載入 adapter。
-3. 建立監看 pass/fail Store、timeout、unexpected trap 與 retire 狀態的通用 testbench/runner。
-4. 執行完整 RV32I ACT regression，全部通過後才可完成 Step 34 驗收並更新 `index.html`。
+```bash
+./run_tests.sh arch
+```
+
+只重跑單一 ELF：
+
+```bash
+bash verification/arch-test/run_arch_tests.sh I-add-00.elf
+```
+
+runner 會監看 `0x01fffff0` 的 pass/fail Store、unexpected trap 與 cycle timeout；失敗 log 不會被後續測試覆蓋。

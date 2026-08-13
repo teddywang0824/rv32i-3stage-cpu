@@ -31,6 +31,7 @@ run_test() {
     -o "${simulation}" \
     rtl/Trap_Detect.sv \
     rtl/Trap_Unit.sv \
+    rtl/Arch_Test_Memory.sv \
     "$@"
 
   echo "[RUN]     ${top}"
@@ -291,6 +292,10 @@ run_rv32i_directed_test() {
     rtl/Data_Memory.sv \
     rtl/Load_Unit.sv \
     tb/tb_CPU_Directed.sv
+}
+
+run_arch_test() {
+  bash verification/arch-test/run_arch_tests.sh "${1:-*.elf}"
 }
 
 run_cpu_test() {
@@ -657,6 +662,10 @@ case "${test_name}" in
     run_rv32i_directed_test
     ;;
 
+  arch)
+    run_arch_test
+    ;;
+
   store)
     run_store_test
     echo "Waveform: ${build_dir}/cpu_store.vcd"
@@ -737,6 +746,7 @@ case "${test_name}" in
     run_image_tool_tests
     run_cpu_image_test
     run_rv32i_directed_test
+    run_arch_test
     run_store_test
     run_load_test
     run_load_hazard_test
@@ -753,7 +763,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|cputrap|fence|system|alignment|imagetools|image|directed|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|cputrap|fence|system|alignment|imagetools|image|directed|arch|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac

@@ -39,6 +39,12 @@ cd /mnt/d/CodeProject/cpu_build
 ./run_tests.sh image
 ```
 
+執行 ACT4 產生的完整 RV32I architectural regression：
+
+```bash
+./run_tests.sh arch
+```
+
 這條命令會以 `-march=rv32i -mabi=ilp32` 編譯
 `programs/image_smoke.S`，產生 ELF、map、objdump、section/symbol report、
 IMEM/DMEM HEX，驗證彼此一致後再啟動 CPU simulation。產生的檔案位於
@@ -231,6 +237,7 @@ misaligned access。
 | `./run_tests.sh image` | `.S → ELF → IMEM/DMEM HEX → artifact verification → CPU simulation` |
 | `./run_tests.sh imagetools` | binary-to-word-HEX host-side converter tests |
 | `./run_tests.sh directed` | 40/40 traceability matrix + 38 normal instructions directed ELF + ordered retire/signature test |
+| `./run_tests.sh arch` | ACT4 ELF → sparse unified-memory image → RTL simulation；目前 39/39 通過 |
 | `./run_tests.sh programrom` | 同步 fetch response contract |
 | `./run_tests.sh hazard` | forwarding integration observation |
 

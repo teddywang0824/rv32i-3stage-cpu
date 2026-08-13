@@ -1,6 +1,10 @@
 module CPU_Sim_Top #(
     parameter IMEM_INIT_FILE = "",
-    parameter DMEM_INIT_FILE = ""
+    parameter DMEM_INIT_FILE = "",
+    parameter integer IMEM_WORDS = 64,
+    parameter integer DMEM_WORDS = 1024,
+    parameter integer USE_UNIFIED_MEMORY = 0,
+    parameter integer UNIFIED_MEMORY_WORDS = 8388608
 ) (
     input  logic        clk,
     input  logic        rst,
@@ -30,6 +34,12 @@ module CPU_Sim_Top #(
     logic        imem_resp_valid;
     logic [31:0] imem_resp_pc;
     logic [31:0] imem_resp_inst;
+    logic        split_imem_resp_valid;
+    logic [31:0] split_imem_resp_pc;
+    logic [31:0] split_imem_resp_inst;
+    logic        unified_imem_resp_valid;
+    logic [31:0] unified_imem_resp_pc;
+    logic [31:0] unified_imem_resp_inst;
 
     logic        dmem_req_valid;
     logic        dmem_req_write;
@@ -38,6 +48,16 @@ module CPU_Sim_Top #(
     logic [31:0] dmem_req_wdata;
     logic        dmem_resp_valid;
     logic [31:0] dmem_resp_rdata;
+    logic        split_dmem_resp_valid;
+    logic [31:0] split_dmem_resp_rdata;
+    logic        unified_dmem_resp_valid;
+    logic [31:0] unified_dmem_resp_rdata;
+
+    assign imem_resp_valid = USE_UNIFIED_MEMORY ? unified_imem_resp_valid : split_imem_resp_valid;
+    assign imem_resp_pc = USE_UNIFIED_MEMORY ? unified_imem_resp_pc : split_imem_resp_pc;
+    assign imem_resp_inst = USE_UNIFIED_MEMORY ? unified_imem_resp_inst : split_imem_resp_inst;
+    assign dmem_resp_valid = USE_UNIFIED_MEMORY ? unified_dmem_resp_valid : split_dmem_resp_valid;
+    assign dmem_resp_rdata = USE_UNIFIED_MEMORY ? unified_dmem_resp_rdata : split_dmem_resp_rdata;
 
     CPU_Core u_CPU_Core (
         .clk                    (clk),
@@ -74,29 +94,52 @@ module CPU_Sim_Top #(
     );
 
     Program_ROM #(
-        .INIT_FILE (IMEM_INIT_FILE)
+        .INIT_FILE (IMEM_INIT_FILE),
+        .WORDS     (IMEM_WORDS)
     ) u_Program_Rom (
         .clk            (clk),
         .rst            (rst),
-        .fetch_en       (imem_req_valid),
+        .fetch_en       (imem_req_valid && !USE_UNIFIED_MEMORY),
         .kill_response  (imem_resp_kill),
         .fetch_addr     (imem_req_addr),
-        .response_valid (imem_resp_valid),
-        .response_pc    (imem_resp_pc),
-        .response_inst  (imem_resp_inst)
+        .response_valid (split_imem_resp_valid),
+        .response_pc    (split_imem_resp_pc),
+        .response_inst  (split_imem_resp_inst)
     );
 
     Data_Memory #(
-        .INIT_FILE (DMEM_INIT_FILE)
+        .INIT_FILE (DMEM_INIT_FILE),
+        .WORDS     (DMEM_WORDS)
     ) u_Data_Memory (
         .clk         (clk),
-        .mem_en      (dmem_req_valid),
+        .mem_en      (dmem_req_valid && !USE_UNIFIED_MEMORY),
         .mem_write   (dmem_req_write),
         .byte_enable (dmem_req_byte_enable),
         .address     (dmem_req_addr),
         .write_data  (dmem_req_wdata),
-        .read_data   (dmem_resp_rdata),
-        .read_valid  (dmem_resp_valid)
+        .read_data   (split_dmem_resp_rdata),
+        .read_valid  (split_dmem_resp_valid)
+    );
+
+    Arch_Test_Memory #(
+        .WORDS         (USE_UNIFIED_MEMORY ? UNIFIED_MEMORY_WORDS : 1),
+        .REQUIRE_IMAGE (USE_UNIFIED_MEMORY)
+    ) u_Arch_Test_Memory (
+        .clk                (clk),
+        .rst                (rst),
+        .fetch_en           (imem_req_valid && USE_UNIFIED_MEMORY),
+        .kill_response      (imem_resp_kill),
+        .fetch_addr         (imem_req_addr),
+        .imem_response_valid(unified_imem_resp_valid),
+        .imem_response_pc   (unified_imem_resp_pc),
+        .imem_response_inst (unified_imem_resp_inst),
+        .dmem_en            (dmem_req_valid && USE_UNIFIED_MEMORY),
+        .dmem_write         (dmem_req_write),
+        .dmem_byte_enable   (dmem_req_byte_enable),
+        .dmem_addr          (dmem_req_addr),
+        .dmem_write_data    (dmem_req_wdata),
+        .dmem_read_valid    (unified_dmem_resp_valid),
+        .dmem_read_data     (unified_dmem_resp_rdata)
     );
 
     // Simulation-only observation aliases keep testbenches independent of the

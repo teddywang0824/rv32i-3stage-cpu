@@ -1,0 +1,14 @@
+CPU Build ACT4 RTL regression
+Date: 2026-08-13
+Command: ./run_tests.sh arch
+Configuration: cpu-build-rv32i, extension I
+Result: passed=39 failed=0 total=39
+
+The complete project regression was also run with:
+  ./run_tests.sh all
+Result: PASS
+
+Per-test logs:
+  build/arch-test/rtl/logs/
+Generated sparse memory images:
+  build/arch-test/rtl/images/
