@@ -8,6 +8,12 @@ The complete project regression was also run with:
   ./run_tests.sh all
 Result: PASS
 
+Representative compiled program (Step 35):
+  ./run_tests.sh compiled
+Result: PASS on two consecutive runs
+Deterministic result: cycles=1304 retired=902
+Coverage: nested calls, stack frame, .data/.bss, array copy, branch-heavy loop
+
 Per-test logs:
   build/arch-test/rtl/logs/
 Generated sparse memory images:

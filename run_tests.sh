@@ -298,6 +298,53 @@ run_arch_test() {
   bash verification/arch-test/run_arch_tests.sh "${1:-*.elf}"
 }
 
+run_compiled_program_test() {
+  local output_dir="build/programs/compiled_workloads"
+  local elf_file="${output_dir}/compiled_workloads.elf"
+  local dump_file="${output_dir}/compiled_workloads.dump"
+  local symbols_file="${output_dir}/compiled_workloads.symbols.txt"
+  local tool_prefix="${RISCV_PREFIX:-/opt/riscv/gcc-15.2.0/bin/riscv-none-elf-}"
+
+  mkdir -p "${output_dir}"
+  echo "[BUILD]   representative freestanding C program"
+  "${tool_prefix}gcc" \
+    -march=rv32i -mabi=ilp32 -O1 \
+    -ffreestanding -fno-builtin -fno-stack-protector -fno-pic \
+    -nostdlib -nostartfiles -mno-relax \
+    -Wl,--build-id=none -Wl,--no-relax -Wl,--no-warn-rwx-segments \
+    -Wl,-T,verification/arch-test/link.ld \
+    -Wl,-Map,"${output_dir}/compiled_workloads.map" \
+    -o "${elf_file}" \
+    programs/compiled_startup.S programs/compiled_workloads.c
+
+  "${tool_prefix}objdump" -d -M no-aliases,numeric "${elf_file}" > "${dump_file}"
+  "${tool_prefix}nm" -n "${elf_file}" > "${symbols_file}"
+  if "${tool_prefix}nm" -u "${elf_file}" | grep -q .; then
+    echo "[FAIL] compiled workload has unresolved runtime symbols" >&2
+    "${tool_prefix}nm" -u "${elf_file}" >&2
+    return 1
+  fi
+  if grep -Eq $'\\t(c\\.|mul|mulh|mulhsu|mulhu|div|divu|rem|remu|csrr|csrw|mret|wfi)' "${dump_file}"; then
+    echo "[FAIL] compiled workload contains an unsupported instruction" >&2
+    return 1
+  fi
+
+  local first_result second_result
+  first_result="$(ACT4_ELF_DIR="${project_dir}/${output_dir}" \
+    bash verification/arch-test/run_arch_tests.sh compiled_workloads.elf \
+    | tee "${output_dir}/run-1.txt" | grep '\[ACT4 PASS\]')"
+  second_result="$(ACT4_ELF_DIR="${project_dir}/${output_dir}" \
+    bash verification/arch-test/run_arch_tests.sh compiled_workloads.elf \
+    | tee "${output_dir}/run-2.txt" | grep '\[ACT4 PASS\]')"
+  echo "${first_result}"
+  echo "${second_result}"
+  if [[ "${first_result}" != "${second_result}" ]]; then
+    echo "[FAIL] compiled workload is not cycle/retire deterministic" >&2
+    return 1
+  fi
+  echo "[PASS] compiled workload: call/return, stack, .data/.bss, copy, and branch loop"
+}
+
 run_cpu_test() {
   run_test tb_CPU_Top \
     rtl/Controller.sv \
@@ -666,6 +713,10 @@ case "${test_name}" in
     run_arch_test
     ;;
 
+  compiled)
+    run_compiled_program_test
+    ;;
+
   store)
     run_store_test
     echo "Waveform: ${build_dir}/cpu_store.vcd"
@@ -747,6 +798,7 @@ case "${test_name}" in
     run_cpu_image_test
     run_rv32i_directed_test
     run_arch_test
+    run_compiled_program_test
     run_store_test
     run_load_test
     run_load_hazard_test
@@ -763,7 +815,7 @@ case "${test_name}" in
 
   *)
     echo "Unknown test: ${test_name}" >&2
-    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|cputrap|fence|system|alignment|imagetools|image|directed|arch|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
+    echo "Usage: $0 {pc|reg|instdecoder|programrom|ifid|idex|exwb|alu|control|forwarding|hazardunit|branchunit|memory|storeunit|loadunit|trapdetect|trapunit|cputrap|fence|system|alignment|imagetools|image|directed|arch|compiled|store|load|loadhazard|illegal|program|retire|hazard|cpu|branch|jal|jalr|all}" >&2
     exit 1
     ;;
 esac
